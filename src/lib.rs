@@ -6,6 +6,7 @@
 //! OpenCode V2 APIs are isolated under [`v2`].
 
 mod client;
+pub mod current;
 mod error;
 pub mod generated;
 mod models;
