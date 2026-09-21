@@ -8,6 +8,14 @@ on:
       - spec/upstream.json
       - scripts/generate_contract.py
       - .github/workflows/contract.yml
+  pull_request:
+    branches: [main]
+    paths:
+      - src/**
+      - tests/live_contract.rs
+      - spec/upstream.json
+      - scripts/generate_contract.py
+      - .github/workflows/contract.yml
 
 permissions:
   contents: write
@@ -58,6 +66,7 @@ jobs:
           OPENCODE_TEST_BASE_URL: http://127.0.0.1:4096
         run: cargo test --test live_contract -- --ignored --nocapture
       - name: Commit refreshed contract
+        if: github.event_name != 'pull_request'
         run: |
           if [ -z "$(git status --porcelain -- spec/openapi.json src/generated/operations.rs)" ]; then
             exit 0
