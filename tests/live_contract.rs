@@ -160,4 +160,32 @@ async fn live_session_and_sse_contract() {
         .list(None)
         .await
         .expect("list v2 question requests");
+
+    let health = v2.health().get().await.expect("get v2 health");
+    assert!(health.healthy);
+
+    let location = v2.location().get(None).await.expect("get v2 location");
+    assert!(!location.directory.is_empty());
+
+    v2.agent().list(None).await.expect("list v2 agents");
+    v2.command().list(None).await.expect("list v2 commands");
+    v2.skill().list(None).await.expect("list v2 skills");
+    v2.reference()
+        .list(None)
+        .await
+        .expect("list v2 references");
+
+    let integrations = v2
+        .integration()
+        .list(None)
+        .await
+        .expect("list v2 integrations");
+    if let Some(integration) = integrations.data.first() {
+        let fetched = v2
+            .integration()
+            .get(&integration.id, None)
+            .await
+            .expect("get v2 integration");
+        assert_eq!(fetched.data.id, integration.id);
+    }
 }
