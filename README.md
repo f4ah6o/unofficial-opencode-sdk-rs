@@ -26,7 +26,9 @@ already running OpenCode server and provide:
 - isolated `v2::Client` for OpenCode's preview `/api/*` contract;
 - V2 session `list/create/get/active/switch-agent/switch-model/prompt/compact/wait/context/history/message/messages/events/interrupt`;
 - V2 per-session revert, permission, and question operations;
+- V2 health/location/agent/command/skill/reference discovery;
 - V2 model/provider discovery;
+- V2 integration discovery/connect/attempt APIs and credential update/remove;
 - V2 filesystem read/list/find;
 - V2 pending/saved permission discovery and saved-permission removal;
 - V2 pending question discovery;
@@ -212,7 +214,22 @@ Permission/question reply and revert operations are available, but CI does not
 create artificial pending approvals/questions or mutate repository files merely
 to exercise destructive workflow paths.
 
-### V2 models, providers, filesystem, permissions, and questions
+### V2 discovery, integrations, filesystem, permissions, and questions
+
+```rust
+let health = v2.health().get().await?;
+let location = v2.location().get(None).await?;
+let agents = v2.agent().list(None).await?;
+let commands = v2.command().list(None).await?;
+let skills = v2.skill().list(None).await?;
+let references = v2.reference().list(None).await?;
+let integrations = v2.integration().list(None).await?;
+```
+
+Integration key/OAuth connect, OAuth attempt status/cancel/complete, and
+credential update/remove are also exposed. CI does not use real integration
+credentials or mutate stored credentials.
+
 
 ```rust
 use unofficial_opencode_sdk::v2::FindFilesOptions;

@@ -19,8 +19,10 @@ use serde_json::Value;
 
 use crate::{Error, SseDecoder};
 
+mod discovery;
 mod resources;
 mod session;
+pub use discovery::*;
 pub use resources::*;
 pub use session::*;
 
