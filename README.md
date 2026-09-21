@@ -186,7 +186,7 @@ cargo doc --no-deps --all-features
 cargo publish --dry-run
 ```
 
-CI also checks the declared Rust 1.85 MSRV.
+CI also checks the declared Rust 1.87 MSRV.
 
 The contract workflow additionally generates the OpenAPI snapshot from the
 pinned upstream source, starts that exact OpenCode server, creates/lists/gets/
