@@ -1,0 +1,71 @@
+name: refresh-and-smoke-contract
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - spec/upstream.json
+      - scripts/generate_contract.py
+      - .github/workflows/contract.yml
+
+permissions:
+  contents: write
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out SDK
+        uses: actions/checkout@v4
+      - name: Read pinned upstream SHA
+        id: upstream
+        run: echo "sha=$(python3 -c 'import json; print(json.load(open("spec/upstream.json"))["upstream_commit"])')" >> "$GITHUB_OUTPUT"
+      - name: Check out pinned OpenCode
+        uses: actions/checkout@v4
+        with:
+          repository: anomalyco/opencode
+          ref: ${{ steps.upstream.outputs.sha }}
+          path: .upstream
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install OpenCode workspace dependencies
+        working-directory: .upstream
+        run: bun install --frozen-lockfile
+      - name: Generate authoritative OpenAPI snapshot
+        working-directory: .upstream/packages/opencode
+        run: bun dev generate > "$GITHUB_WORKSPACE/spec/openapi.json"
+      - name: Generate Rust contract manifest
+        run: python3 scripts/generate_contract.py
+      - name: Start pinned OpenCode server
+        working-directory: .upstream/packages/opencode
+        run: |
+          nohup bun dev serve --hostname 127.0.0.1 --port 4096 > "$RUNNER_TEMP/opencode.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/opencode.pid"
+          for i in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:4096/doc >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/opencode.log"
+          exit 1
+      - name: Live contract smoke
+        env:
+          OPENCODE_TEST_BASE_URL: http://127.0.0.1:4096
+        run: cargo test --test live_contract -- --ignored --nocapture
+      - name: Commit refreshed contract
+        run: |
+          if git diff --quiet -- spec/openapi.json src/generated/operations.rs; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add spec/openapi.json src/generated/operations.rs
+          git commit -m "chore: pin generated OpenCode contract"
+          git push
+      - name: Dump OpenCode log on failure
+        if: failure()
+        run: cat "$RUNNER_TEMP/opencode.log" 2>/dev/null || true

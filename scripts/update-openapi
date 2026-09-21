@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root="$(cd "$(dirname "$0")/.." && pwd)"
+sha="$(python3 -c 'import json; print(json.load(open("'"$root"'/spec/upstream.json"))["upstream_commit"])')"
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+
+git clone --filter=blob:none https://github.com/anomalyco/opencode "$tmp/opencode"
+git -C "$tmp/opencode" checkout "$sha"
+(
+  cd "$tmp/opencode"
+  bun install --frozen-lockfile
+)
+(
+  cd "$tmp/opencode/packages/opencode"
+  bun dev generate > "$root/spec/openapi.json"
+)
+python3 "$root/scripts/generate_contract.py"

@@ -1,0 +1,39 @@
+{
+  "upstream_repository": "https://github.com/anomalyco/opencode",
+  "upstream_default_branch": "dev",
+  "upstream_commit": "ba341c6cac5ed1ef867ef127245a42b5e33d4946",
+  "contract": {
+    "authoritative_source": "Server.openapi() / PublicApi after matchLegacyOpenApi",
+    "server_entrypoint": "packages/opencode/src/server/server.ts",
+    "public_api_source": "packages/opencode/src/server/routes/instance/httpapi/public.ts",
+    "generation_command": "cd packages/opencode && bun dev generate",
+    "runtime_documentation_endpoint": "GET /doc",
+    "checked_in_upstream_artifact": false,
+    "snapshot": "spec/openapi.json"
+  },
+  "official_js_sdk": {
+    "path": "packages/sdk/js",
+    "generator": "@hey-api/openapi-ts",
+    "generator_version": "0.90.10",
+    "build_script": "packages/sdk/js/script/build.ts",
+    "notes": [
+      "The JS build generates openapi.json temporarily and removes it after SDK generation.",
+      "The upstream build patches SSE generic output and selected generated query scalar types."
+    ]
+  },
+  "rust_generation": {
+    "selected": "scripts/generate_contract.py",
+    "selected_version": "0.1.0",
+    "scope": "operation manifest and pinned contract validation for the first vertical slice",
+    "evaluated": {
+      "openapi-generator-rust": "Rejected for whole-document model generation: current feature matrix reports no anyOf/union/null support required by this OpenAPI 3.1 contract.",
+      "progenitor-0.15.0": "Rejected for whole-document generation in this slice: its documented input target is OpenAPI 3.0.x while OpenCode emits OpenAPI 3.1."
+    },
+    "full_model_generator": null
+  },
+  "sse": {
+    "endpoint": "/event",
+    "openapi_operation": "event.subscribe",
+    "note": "Effect HttpApi models the transport response as text/event-stream; matchLegacyOpenApi injects the Event schema because SSE payload typing is not first-class in HttpApi."
+  }
+}
