@@ -1,7 +1,7 @@
-use unofficial_opencode_sdk::{Client, CreateSessionRequest};
 use unofficial_opencode_sdk::v2::{
     CreateSessionRequest as V2CreateSessionRequest, ListSessionsOptions,
 };
+use unofficial_opencode_sdk::{Client, CreateSessionRequest};
 
 #[tokio::test]
 #[ignore = "requires a real OpenCode server; exercised by contract workflow"]
