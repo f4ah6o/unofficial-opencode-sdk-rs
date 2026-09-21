@@ -163,7 +163,7 @@ struct DataEnvelope<T> {
     data: T,
 }
 
-fn apply_location(url: &mut url::Url, client: &Client, location: Option<&LocationQuery>) {
+pub(super) fn apply_location(url: &mut url::Url, client: &Client, location: Option<&LocationQuery>) {
     let directory = location
         .and_then(|value| value.directory.as_deref())
         .or(client.directory.as_deref());
