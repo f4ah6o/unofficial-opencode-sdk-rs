@@ -1,4 +1,4 @@
-# opencode-sdk
+# unofficial-opencode-sdk
 
 Unofficial Rust SDK for the OpenCode server HTTP and SSE APIs.
 
@@ -26,20 +26,27 @@ checkpoint, task-state, or lifecycle code.
 
 ## Install
 
-Publishing to crates.io is intentionally out of scope for this slice. Use a Git
-dependency:
+For the crates.io release:
 
 ```toml
 [dependencies]
-opencode-sdk = { git = "https://github.com/f4ah6o/unofficial-opencode-sdk-rs" }
+unofficial-opencode-sdk = "0.1"
 ```
 
-The Rust crate import is `opencode_sdk`.
+The Rust crate import is `unofficial_opencode_sdk`.
+
+Until the first crates.io release is published, the same package can be used
+from Git:
+
+```toml
+[dependencies]
+unofficial-opencode-sdk = { git = "https://github.com/f4ah6o/unofficial-opencode-sdk-rs" }
+```
 
 ## Client-only usage
 
 ```rust
-use opencode_sdk::Client;
+use unofficial_opencode_sdk::Client;
 
 let client = Client::builder()
     .base_url("http://127.0.0.1:4096")
@@ -61,7 +68,7 @@ Credentials are never persisted by the SDK.
 ## Sessions and prompts
 
 ```rust
-use opencode_sdk::{CreateSessionRequest, PromptPart, PromptRequest};
+use unofficial_opencode_sdk::{CreateSessionRequest, PromptPart, PromptRequest};
 
 let session = client
     .session()
@@ -89,7 +96,7 @@ specific OpenCode directory/workspace context.
 
 ```rust
 use futures_util::StreamExt;
-use opencode_sdk::EventData;
+use unofficial_opencode_sdk::EventData;
 
 let mut events = client.events().subscribe().await?;
 while let Some(event) = events.next().await {
@@ -176,9 +183,18 @@ cargo check --all-targets --all-features
 cargo clippy --all-targets --all-features -- -D warnings
 cargo test --all-features
 cargo doc --no-deps --all-features
+cargo publish --dry-run
 ```
+
+CI also checks the declared Rust 1.85 MSRV.
 
 The contract workflow additionally generates the OpenAPI snapshot from the
 pinned upstream source, starts that exact OpenCode server, creates/lists/gets/
 aborts a session, opens the SSE endpoint, and commits the verified snapshot
 back to `main` when it changed.
+
+## Publishing
+
+Release packaging and crates.io Trusted Publishing are documented in
+[`PUBLISHING.md`](PUBLISHING.md). The repository does not store a crates.io
+API token.
