@@ -28,7 +28,7 @@ include = [
 upstream-version = "1.18.31"
 official-sdk-version = "1.18.31"
 upstream-commit = "ba341c6cac5ed1ef867ef127245a42b5e33d4946"
-contract = "legacy-current+v2-preview"
+contract = "current-stable-complete+v2-preview"
 
 [dependencies]
 bytes = "1.10"
