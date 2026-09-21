@@ -371,11 +371,7 @@ impl PtyApi<'_> {
             pairs.push(("ticket".to_owned(), ticket.to_owned()));
         }
         let url = current_url(self.client, &format!("pty/{pty_id}/connect"), pairs)?;
-        let response = self
-            .client
-            .request_url(Method::GET, url)
-            .send()
-            .await?;
+        let response = self.client.request_url(Method::GET, url).send().await?;
         decode_bool(self.client, response).await
     }
 }
@@ -433,11 +429,7 @@ impl ToolApi<'_> {
                 ("model".to_owned(), options.model.clone()),
             ],
         )?;
-        let response = self
-            .client
-            .request_url(Method::GET, url)
-            .send()
-            .await?;
+        let response = self.client.request_url(Method::GET, url).send().await?;
         decode_value(self.client, response).await
     }
 }
@@ -500,11 +492,7 @@ impl VcsApi<'_> {
             pairs.push(("context".to_owned(), context.to_string()));
         }
         let url = current_url(self.client, "vcs/diff", pairs)?;
-        let response = self
-            .client
-            .request_url(Method::GET, url)
-            .send()
-            .await?;
+        let response = self.client.request_url(Method::GET, url).send().await?;
         self.client.decode(response).await
     }
 
@@ -543,11 +531,7 @@ pub struct CommandApi<'a> {
 
 impl CommandApi<'_> {
     pub async fn list(&self) -> Result<Vec<Value>, Error> {
-        let response = self
-            .client
-            .request(Method::GET, "command")?
-            .send()
-            .await?;
+        let response = self.client.request(Method::GET, "command")?.send().await?;
         self.client.decode(response).await
     }
 }
@@ -558,11 +542,7 @@ pub struct ProviderApi<'a> {
 
 impl ProviderApi<'_> {
     pub async fn list(&self) -> Result<Value, Error> {
-        let response = self
-            .client
-            .request(Method::GET, "provider")?
-            .send()
-            .await?;
+        let response = self.client.request(Method::GET, "provider")?.send().await?;
         decode_value(self.client, response).await
     }
 
@@ -633,11 +613,7 @@ impl FindApi<'_> {
             "find",
             [("pattern".to_owned(), pattern.to_owned())],
         )?;
-        let response = self
-            .client
-            .request_url(Method::GET, url)
-            .send()
-            .await?;
+        let response = self.client.request_url(Method::GET, url).send().await?;
         self.client.decode(response).await
     }
 
@@ -653,11 +629,7 @@ impl FindApi<'_> {
             pairs.push(("limit".to_owned(), limit.to_string()));
         }
         let url = current_url(self.client, "find/file", pairs)?;
-        let response = self
-            .client
-            .request_url(Method::GET, url)
-            .send()
-            .await?;
+        let response = self.client.request_url(Method::GET, url).send().await?;
         self.client.decode(response).await
     }
 
@@ -667,11 +639,7 @@ impl FindApi<'_> {
             "find/symbol",
             [("query".to_owned(), query.to_owned())],
         )?;
-        let response = self
-            .client
-            .request_url(Method::GET, url)
-            .send()
-            .await?;
+        let response = self.client.request_url(Method::GET, url).send().await?;
         self.client.decode(response).await
     }
 }
@@ -682,16 +650,8 @@ pub struct FileApi<'a> {
 
 impl FileApi<'_> {
     pub async fn list(&self, path: &str) -> Result<Vec<Value>, Error> {
-        let url = current_url(
-            self.client,
-            "file",
-            [("path".to_owned(), path.to_owned())],
-        )?;
-        let response = self
-            .client
-            .request_url(Method::GET, url)
-            .send()
-            .await?;
+        let url = current_url(self.client, "file", [("path".to_owned(), path.to_owned())])?;
+        let response = self.client.request_url(Method::GET, url).send().await?;
         self.client.decode(response).await
     }
 
@@ -701,11 +661,7 @@ impl FileApi<'_> {
             "file/content",
             [("path".to_owned(), path.to_owned())],
         )?;
-        let response = self
-            .client
-            .request_url(Method::GET, url)
-            .send()
-            .await?;
+        let response = self.client.request_url(Method::GET, url).send().await?;
         decode_value(self.client, response).await
     }
 
@@ -919,11 +875,7 @@ pub struct QuestionApi<'a> {
 
 impl QuestionApi<'_> {
     pub async fn list(&self) -> Result<Vec<Value>, Error> {
-        let response = self
-            .client
-            .request(Method::GET, "question")?
-            .send()
-            .await?;
+        let response = self.client.request(Method::GET, "question")?.send().await?;
         self.client.decode(response).await
     }
 
@@ -965,8 +917,11 @@ impl TuiApi<'_> {
     }
 
     pub async fn append_prompt(&self, text: &str) -> Result<bool, Error> {
-        self.post_bool("tui/append-prompt", Some(&serde_json::json!({ "text": text })))
-            .await
+        self.post_bool(
+            "tui/append-prompt",
+            Some(&serde_json::json!({ "text": text })),
+        )
+        .await
     }
 
     pub async fn open_help(&self) -> Result<bool, Error> {
@@ -1071,11 +1026,7 @@ impl SessionApi<'_> {
             pairs.push(("limit".to_owned(), limit.to_string()));
         }
         let url = current_url(self.client, "session", pairs)?;
-        let response = self
-            .client
-            .request_url(Method::GET, url)
-            .send()
-            .await?;
+        let response = self.client.request_url(Method::GET, url).send().await?;
         self.client.decode(response).await
     }
 
@@ -1167,17 +1118,17 @@ impl SessionApi<'_> {
         self.client.decode(response).await
     }
 
-    pub async fn diff(&self, session_id: &str, message_id: Option<&str>) -> Result<Vec<Value>, Error> {
+    pub async fn diff(
+        &self,
+        session_id: &str,
+        message_id: Option<&str>,
+    ) -> Result<Vec<Value>, Error> {
         let mut pairs = Vec::new();
         if let Some(message_id) = message_id {
             pairs.push(("messageID".to_owned(), message_id.to_owned()));
         }
         let url = current_url(self.client, &format!("session/{session_id}/diff"), pairs)?;
-        let response = self
-            .client
-            .request_url(Method::GET, url)
-            .send()
-            .await?;
+        let response = self.client.request_url(Method::GET, url).send().await?;
         self.client.decode(response).await
     }
 
@@ -1203,16 +1154,8 @@ impl SessionApi<'_> {
         if let Some(before) = &options.before {
             pairs.push(("before".to_owned(), before.clone()));
         }
-        let url = current_url(
-            self.client,
-            &format!("session/{session_id}/message"),
-            pairs,
-        )?;
-        let response = self
-            .client
-            .request_url(Method::GET, url)
-            .send()
-            .await?;
+        let url = current_url(self.client, &format!("session/{session_id}/message"), pairs)?;
+        let response = self.client.request_url(Method::GET, url).send().await?;
         self.client.decode(response).await
     }
 
