@@ -1,13 +1,25 @@
 [package]
-name = "opencode-sdk"
+name = "unofficial-opencode-sdk"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.85"
 description = "Unofficial Rust client SDK for the OpenCode server HTTP and SSE APIs"
+documentation = "https://docs.rs/unofficial-opencode-sdk"
+readme = "README.md"
 license = "MIT"
 repository = "https://github.com/f4ah6o/unofficial-opencode-sdk-rs"
-keywords = ["opencode", "sdk", "api", "sse"]
-categories = ["api-bindings"]
+keywords = ["opencode", "sdk", "api", "sse", "client"]
+categories = ["api-bindings", "web-programming::http-client"]
+publish = ["crates-io"]
+include = [
+    "/src/**",
+    "/examples/**",
+    "/tests/models.rs",
+    "/README.md",
+    "/CHANGELOG.md",
+    "/LICENSE",
+    "/THIRD_PARTY_NOTICES.md",
+]
 
 [dependencies]
 bytes = "1.10"
