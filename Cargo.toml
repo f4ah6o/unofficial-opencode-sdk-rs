@@ -2,7 +2,7 @@
 name = "unofficial-opencode-sdk"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.87"
 description = "Unofficial Rust client SDK for the OpenCode server HTTP and SSE APIs"
 documentation = "https://docs.rs/unofficial-opencode-sdk"
 readme = "README.md"
