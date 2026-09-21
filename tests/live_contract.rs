@@ -1,4 +1,4 @@
-use opencode_sdk::{Client, CreateSessionRequest};
+use unofficial_opencode_sdk::{Client, CreateSessionRequest};
 
 #[tokio::test]
 #[ignore = "requires a real OpenCode server; exercised by contract workflow"]
@@ -10,7 +10,7 @@ async fn live_session_and_sse_contract() {
     let created = client
         .session()
         .create(&CreateSessionRequest {
-            title: Some("opencode-sdk contract smoke".into()),
+            title: Some("unofficial-opencode-sdk contract smoke".into()),
             ..Default::default()
         })
         .await
