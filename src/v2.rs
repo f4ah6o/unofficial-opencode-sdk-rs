@@ -318,18 +318,52 @@ pub struct SessionApi<'a> {
 
 impl SessionApi<'_> {
     pub async fn list(&self, options: &ListSessionsOptions) -> Result<SessionPage, Error> {
-        let mut query = options.clone();
-        if query.directory.is_none() {
-            query.directory.clone_from(&self.client.directory);
-        }
-        if query.workspace.is_none() {
-            query.workspace.clone_from(&self.client.workspace_id);
+        let mut url = self.client.inner.url("api/session")?;
+        {
+            let mut query = url.query_pairs_mut();
+            if let Some(workspace) = options
+                .workspace
+                .as_deref()
+                .or(self.client.workspace_id.as_deref())
+            {
+                query.append_pair("workspace", workspace);
+            }
+            if let Some(limit) = options.limit {
+                query.append_pair("limit", &limit.to_string());
+            }
+            if let Some(order) = options.order {
+                query.append_pair(
+                    "order",
+                    match order {
+                        Order::Asc => "asc",
+                        Order::Desc => "desc",
+                    },
+                );
+            }
+            if let Some(search) = options.search.as_deref() {
+                query.append_pair("search", search);
+            }
+            if let Some(directory) = options
+                .directory
+                .as_deref()
+                .or(self.client.directory.as_deref())
+            {
+                query.append_pair("directory", directory);
+            }
+            if let Some(project) = options.project.as_deref() {
+                query.append_pair("project", project);
+            }
+            if let Some(subpath) = options.subpath.as_deref() {
+                query.append_pair("subpath", subpath);
+            }
+            if let Some(cursor) = options.cursor.as_deref() {
+                query.append_pair("cursor", cursor);
+            }
         }
         let response = self
             .client
             .inner
-            .request_base(Method::GET, "api/session")?
-            .query(&query)
+            .request_url(Method::GET, url)
             .send()
             .await?;
         self.client.inner.decode(response).await
@@ -337,13 +371,13 @@ impl SessionApi<'_> {
 
     pub async fn create(&self, body: &CreateSessionRequest) -> Result<Session, Error> {
         let mut body = body.clone();
-        if body.location.is_none()
-            && let Some(directory) = &self.client.directory
-        {
-            body.location = Some(LocationRef {
-                directory: directory.clone(),
-                workspace_id: self.client.workspace_id.clone(),
-            });
+        if body.location.is_none() {
+            if let Some(directory) = &self.client.directory {
+                body.location = Some(LocationRef {
+                    directory: directory.clone(),
+                    workspace_id: self.client.workspace_id.clone(),
+                });
+            }
         }
         let response = self
             .client
@@ -413,14 +447,19 @@ impl SessionApi<'_> {
         session_id: &str,
         after: Option<&str>,
     ) -> Result<EventStream, Error> {
-        let mut request = self
+        let mut url = self
             .client
             .inner
-            .request_base(Method::GET, &format!("api/session/{session_id}/event"))?;
+            .url(&format!("api/session/{session_id}/event"))?;
         if let Some(after) = after {
-            request = request.query(&[("after", after)]);
+            url.query_pairs_mut().append_pair("after", after);
         }
-        let response = request.send().await?;
+        let response = self
+            .client
+            .inner
+            .request_url(Method::GET, url)
+            .send()
+            .await?;
         if !response.status().is_success() {
             self.client.inner.ensure_success(response).await?;
             unreachable!();
