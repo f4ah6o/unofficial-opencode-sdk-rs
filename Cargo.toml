@@ -15,12 +15,19 @@ include = [
     "/src/**",
     "/examples/**",
     "/tests/models.rs",
+    "/tests/v2.rs",
     "/README.md",
     "/CHANGELOG.md",
     "/PUBLISHING.md",
     "/LICENSE",
     "/THIRD_PARTY_NOTICES.md",
 ]
+
+[package.metadata.opencode]
+upstream-version = "1.18.31"
+official-sdk-version = "1.18.31"
+upstream-commit = "ba341c6cac5ed1ef867ef127245a42b5e33d4946"
+contract = "legacy-current+v2-preview"
 
 [dependencies]
 bytes = "1.10"
