@@ -9,7 +9,8 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - Client-only Rust SDK for an existing OpenCode server.
-- Legacy/current session create, list, get, prompt, and abort operations.
+- Broad V1/current client coverage across global/project/pty/config/tool/instance/path/vcs/session/command/provider/find/file/app/mcp/lsp/formatter/tui/auth/permission/question/event.
+- V1/current session lifecycle, children/todo/diff/messages/command/shell/revert/part and permission-response operations.
 - Isolated `unofficial_opencode_sdk::v2` preview namespace for OpenCode's `/api/*` contract.
 - V2 session list, create, get, active, switch-agent, switch-model, prompt, compact, wait, context, history, message/messages, interrupt, and durable-event operations.
 - V2 per-session revert staging/clear/commit, permission request/list/get/reply, and question list/reply/reject APIs.
