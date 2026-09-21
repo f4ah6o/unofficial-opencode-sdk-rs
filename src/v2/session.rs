@@ -217,10 +217,7 @@ impl SessionPermissionApi<'_> {
         Ok(envelope.data)
     }
 
-    pub async fn create(
-        &self,
-        body: &CreatePermissionRequest,
-    ) -> Result<PermissionCreated, Error> {
+    pub async fn create(&self, body: &CreatePermissionRequest) -> Result<PermissionCreated, Error> {
         let response = self
             .client
             .inner
@@ -241,10 +238,7 @@ impl SessionPermissionApi<'_> {
             .inner
             .request_base(
                 Method::GET,
-                &format!(
-                    "api/session/{}/permission/{request_id}",
-                    self.session_id
-                ),
+                &format!("api/session/{}/permission/{request_id}", self.session_id),
             )?
             .send()
             .await?;
@@ -294,11 +288,7 @@ impl SessionQuestionApi<'_> {
         Ok(envelope.data)
     }
 
-    pub async fn reply(
-        &self,
-        request_id: &str,
-        body: &QuestionReplyRequest,
-    ) -> Result<(), Error> {
+    pub async fn reply(&self, request_id: &str, body: &QuestionReplyRequest) -> Result<(), Error> {
         let response = self
             .client
             .inner
