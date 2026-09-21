@@ -59,7 +59,7 @@ jobs:
         run: cargo test --test live_contract -- --ignored --nocapture
       - name: Commit refreshed contract
         run: |
-          if git diff --quiet -- spec/openapi.json src/generated/operations.rs; then
+          if [ -z "$(git status --porcelain -- spec/openapi.json src/generated/operations.rs)" ]; then
             exit 0
           fi
           git config user.name "github-actions[bot]"
