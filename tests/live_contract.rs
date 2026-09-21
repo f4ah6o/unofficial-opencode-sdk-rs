@@ -1,3 +1,6 @@
+use unofficial_opencode_sdk::v2::{
+    CreateSessionRequest as V2CreateSessionRequest, ListSessionsOptions,
+};
 use unofficial_opencode_sdk::{Client, CreateSessionRequest};
 
 #[tokio::test]
@@ -40,4 +43,35 @@ async fn live_session_and_sse_contract() {
             .await
             .expect("abort session")
     );
+
+    let v2 = client.v2();
+    let v2_created = v2
+        .session()
+        .create(&V2CreateSessionRequest::default())
+        .await
+        .expect("create v2 session");
+
+    let v2_fetched = v2
+        .session()
+        .get(&v2_created.id)
+        .await
+        .expect("get v2 session");
+    assert_eq!(v2_created.id, v2_fetched.id);
+
+    let v2_page = v2
+        .session()
+        .list(&ListSessionsOptions::default())
+        .await
+        .expect("list v2 sessions");
+    assert!(
+        v2_page
+            .data
+            .iter()
+            .any(|session| session.id == v2_created.id)
+    );
+
+    v2.session()
+        .interrupt(&v2_created.id)
+        .await
+        .expect("interrupt v2 session");
 }

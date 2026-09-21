@@ -44,8 +44,30 @@ impl Client {
         EventsApi { client: self }
     }
 
-    fn url(&self, path: &str) -> Result<Url, Error> {
+    /// Create a V2 client sharing this client's transport and authentication.
+    ///
+    /// A configured legacy/current `directory` becomes the V2 client's default
+    /// directory. V2 workspace context is configured separately on
+    /// [`crate::v2::ClientBuilder`].
+    pub fn v2(&self) -> crate::v2::Client {
+        crate::v2::Client::from_current(self.clone())
+    }
+
+    pub(crate) fn url(&self, path: &str) -> Result<Url, Error> {
         Ok(self.inner.base_url.join(path.trim_start_matches('/'))?)
+    }
+
+    pub(crate) fn request_url(&self, method: Method, url: Url) -> RequestBuilder {
+        let mut request = self.inner.http.request(method, url);
+        if let Some(password) = &self.inner.password {
+            let username = self.inner.username.as_deref().unwrap_or("opencode");
+            request = request.basic_auth(username, Some(password));
+        }
+        request
+    }
+
+    pub(crate) fn request_base(&self, method: Method, path: &str) -> Result<RequestBuilder, Error> {
+        Ok(self.request_url(method, self.url(path)?))
     }
 
     fn request(&self, method: Method, path: &str) -> Result<RequestBuilder, Error> {
@@ -53,17 +75,23 @@ impl Client {
         if let Some(directory) = &self.inner.directory {
             url.query_pairs_mut().append_pair("directory", directory);
         }
-        let mut request = self.inner.http.request(method, url);
-        if let Some(password) = &self.inner.password {
-            let username = self.inner.username.as_deref().unwrap_or("opencode");
-            request = request.basic_auth(username, Some(password));
-        }
-        Ok(request)
+        Ok(self.request_url(method, url))
     }
 
-    async fn decode<T: DeserializeOwned>(&self, response: Response) -> Result<T, Error> {
+    pub(crate) fn configured_directory(&self) -> Option<&str> {
+        self.inner.directory.as_deref()
+    }
+
+    pub(crate) async fn decode<T: DeserializeOwned>(&self, response: Response) -> Result<T, Error> {
         if response.status().is_success() {
             return Ok(response.json().await?);
+        }
+        Err(api_error(response).await.into())
+    }
+
+    pub(crate) async fn ensure_success(&self, response: Response) -> Result<(), Error> {
+        if response.status().is_success() {
+            return Ok(());
         }
         Err(api_error(response).await.into())
     }

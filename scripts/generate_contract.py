@@ -2,8 +2,9 @@
 """Generate the checked-in Rust operation manifest from OpenCode OpenAPI.
 
 This is deliberately small. It validates the operation IDs used by the first
-vertical slice without claiming that current Rust generators can correctly
-translate every OpenAPI 3.1 union in the upstream contract.
+legacy/current and V2 vertical slices without claiming that current Rust
+generators can correctly translate every OpenAPI 3.1 union in the upstream
+contract.
 """
 from __future__ import annotations
 
@@ -23,6 +24,14 @@ OPERATIONS = [
     ("SESSION_PROMPT", "session.prompt"),
     ("SESSION_ABORT", "session.abort"),
     ("EVENT_SUBSCRIBE", "event.subscribe"),
+    ("V2_SESSION_LIST", "v2.session.list"),
+    ("V2_SESSION_GET", "v2.session.get"),
+    ("V2_SESSION_CREATE", "v2.session.create"),
+    ("V2_SESSION_PROMPT", "v2.session.prompt"),
+    ("V2_SESSION_WAIT", "v2.session.wait"),
+    ("V2_SESSION_INTERRUPT", "v2.session.interrupt"),
+    ("V2_SESSION_EVENTS", "v2.session.events"),
+    ("V2_EVENT_SUBSCRIBE", "v2.event.subscribe"),
 ]
 
 

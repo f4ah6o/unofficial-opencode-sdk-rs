@@ -1,6 +1,7 @@
 {
   "upstream_repository": "https://github.com/anomalyco/opencode",
   "upstream_default_branch": "dev",
+  "upstream_version": "1.18.31",
   "upstream_commit": "ba341c6cac5ed1ef867ef127245a42b5e33d4946",
   "contract": {
     "authoritative_source": "Server.openapi() / PublicApi after matchLegacyOpenApi",
@@ -9,14 +10,19 @@
     "generation_command": "cd packages/opencode && bun dev generate",
     "runtime_documentation_endpoint": "GET /doc",
     "checked_in_upstream_artifact": false,
-    "snapshot": "spec/openapi.json"
+    "snapshot": "spec/openapi.json",
+    "v2_status": "preview",
+    "v2_prefix": "/api"
   },
   "official_js_sdk": {
     "path": "packages/sdk/js",
+    "version": "1.18.31",
+    "v2_export": "@opencode-ai/sdk/v2",
     "generator": "@hey-api/openapi-ts",
     "generator_version": "0.90.10",
     "build_script": "packages/sdk/js/script/build.ts",
     "notes": [
+      "The npm package remains on the 1.x release line while exposing the preview V2 API under /v2.",
       "The JS build generates openapi.json temporarily and removes it after SDK generation.",
       "The upstream build patches SSE generic output and selected generated query scalar types."
     ]
@@ -24,7 +30,7 @@
   "rust_generation": {
     "selected": "scripts/generate_contract.py",
     "selected_version": "0.1.0",
-    "scope": "operation manifest and pinned contract validation for the first vertical slice",
+    "scope": "operation manifest and pinned contract validation for the legacy/current and V2 preview vertical slices",
     "evaluated": {
       "openapi-generator-rust": "Rejected for whole-document model generation: current feature matrix reports no anyOf/union/null support required by this OpenAPI 3.1 contract.",
       "progenitor-0.15.0": "Rejected for whole-document generation in this slice: its documented input target is OpenAPI 3.0.x while OpenCode emits OpenAPI 3.1."
@@ -34,6 +40,8 @@
   "sse": {
     "endpoint": "/event",
     "openapi_operation": "event.subscribe",
-    "note": "Effect HttpApi models the transport response as text/event-stream; matchLegacyOpenApi injects the Event schema because SSE payload typing is not first-class in HttpApi."
+    "v2_endpoint": "/api/event",
+    "v2_openapi_operation": "v2.event.subscribe",
+    "note": "Legacy/current events are JSON-decoded by the ergonomic stream. V2 preview streams retain raw SSE data for forward compatibility while the durable-event union evolves."
   }
 }
