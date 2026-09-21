@@ -53,18 +53,21 @@ impl Client {
         crate::v2::Client::from_current(self.clone())
     }
 
-    fn url(&self, path: &str) -> Result<Url, Error> {
+    pub(crate) fn url(&self, path: &str) -> Result<Url, Error> {
         Ok(self.inner.base_url.join(path.trim_start_matches('/'))?)
     }
 
-    pub(crate) fn request_base(&self, method: Method, path: &str) -> Result<RequestBuilder, Error> {
-        let url = self.url(path)?;
+    pub(crate) fn request_url(&self, method: Method, url: Url) -> RequestBuilder {
         let mut request = self.inner.http.request(method, url);
         if let Some(password) = &self.inner.password {
             let username = self.inner.username.as_deref().unwrap_or("opencode");
             request = request.basic_auth(username, Some(password));
         }
-        Ok(request)
+        request
+    }
+
+    pub(crate) fn request_base(&self, method: Method, path: &str) -> Result<RequestBuilder, Error> {
+        Ok(self.request_url(method, self.url(path)?))
     }
 
     fn request(&self, method: Method, path: &str) -> Result<RequestBuilder, Error> {
@@ -72,12 +75,7 @@ impl Client {
         if let Some(directory) = &self.inner.directory {
             url.query_pairs_mut().append_pair("directory", directory);
         }
-        let mut request = self.inner.http.request(method, url);
-        if let Some(password) = &self.inner.password {
-            let username = self.inner.username.as_deref().unwrap_or("opencode");
-            request = request.basic_auth(username, Some(password));
-        }
-        Ok(request)
+        Ok(self.request_url(method, url))
     }
 
     pub(crate) fn configured_directory(&self) -> Option<&str> {
