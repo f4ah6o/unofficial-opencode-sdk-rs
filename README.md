@@ -17,12 +17,15 @@ remain at the crate root and preview V2 APIs live under
 
 ## Scope
 
-The first vertical slices are deliberately client-only. They connect to an
-already running OpenCode server and provide:
+The SDK is deliberately client-only. It connects to an already running
+OpenCode server and provides:
 
-- root `Client::builder()` for the legacy/current HTTP surface;
-- `client.session().create/list/get/prompt/abort`;
-- `client.events().subscribe()` for the legacy/current `/event` SSE stream;
+- a broad root V1/current surface matching all non-V2 current operations except
+  explicit `experimental.*`, `worktree.*`, and `sync.*` families;
+- root groups for global/project/pty/config/tool/instance/path/vcs/session/
+  command/provider/find/file/app/mcp/lsp/formatter/tui/auth/permission/question/event;
+- legacy/current SSE through `client.events().subscribe()` and
+  `client.global().events()`;
 - isolated `v2::Client` for OpenCode's preview `/api/*` contract;
 - V2 session `list/create/get/active/switch-agent/switch-model/prompt/compact/wait/context/history/message/messages/events/interrupt`;
 - V2 per-session revert, permission, and question operations;
@@ -104,8 +107,24 @@ let response = client
 client.session().abort(&session.id).await?;
 ```
 
-Set root `ClientBuilder::directory(...)` when the legacy/current request must
-be routed to a specific OpenCode directory context.
+Set root `ClientBuilder::directory(...)` and/or `workspace(...)` when the
+legacy/current request must be routed to a specific OpenCode context.
+
+The current surface is available directly from the root client:
+
+```rust
+let projects = client.project().list().await?;
+let config = client.config().get().await?;
+let providers = client.provider().list().await?;
+let files = client.file().list(".").await?;
+let permissions = client.permission().list().await?;
+let questions = client.question().list().await?;
+```
+
+Complex upstream unions remain `serde_json::Value` where forcing a Rust enum
+would make the preview/additive contract less forward-compatible. Endpoint,
+method, path, query, and request-body wiring remain pinned by the generated
+OpenAPI operation manifest.
 
 ### Events / SSE
 
@@ -300,8 +319,8 @@ The current OpenAPI Generator Rust feature matrix lacks `anyOf`/union/null
 support used by this OpenAPI 3.1 document, while Progenitor 0.15.0 documents
 OpenAPI 3.0.x as its input target. Instead:
 
-- `scripts/generate_contract.py` validates and generates the selected
-  legacy/current and V2 operation manifest from the authoritative snapshot;
+- `scripts/generate_contract.py` validates all stable V1/current operations
+  plus the explicitly supported V2 preview operations from the authoritative snapshot;
 - session/prompt compatibility models and ergonomic facades are handwritten,
   small, and preserve unknown fields where practical;
 - SSE is handwritten because upstream itself must supplement the OpenAPI
@@ -331,7 +350,9 @@ updates and Rust-only fixes can be released separately.
 For `0.1.x`, compatibility is tied to the exact OpenCode commit in
 `spec/upstream.json`.
 
-The root surface tracks the legacy/current API. The `v2` module tracks
+The root surface tracks the stable legacy/current API. Explicit
+`experimental.*`, `worktree.*`, and `sync.*` operation families are not
+part of the V1/current completion target. The `v2` module tracks
 OpenCode's preview `/api/*` and `@opencode-ai/sdk/v2` surface and may require
 Rust SDK changes as upstream V2 evolves. Additive JSON fields are retained or
 tolerated where practical. V2 SSE payloads remain raw. Breaking request/response
@@ -339,6 +360,10 @@ changes require a new snapshot and SDK update.
 
 ## Known limitations
 
+- V1/current endpoint coverage is broad, but complex config/provider/MCP/TUI and
+  message/part unions use `serde_json::Value` instead of exhaustive Rust enums;
+- explicit `experimental.*`, `worktree.*`, and `sync.*` families are outside
+  the V1/current completion target;
 - V2 session coverage is broad, but message/durable-event variant payloads remain raw JSON while upstream V2 is preview;
 - V2 remains preview upstream and is not claimed stable;
 - full OpenAPI 3.1 model generation is not yet enabled;
@@ -366,9 +391,9 @@ cargo publish --dry-run
 CI also checks the declared Rust 1.87 MSRV.
 
 The contract workflow additionally generates the OpenAPI snapshot from the
-pinned upstream source, starts that exact OpenCode server, exercises both the
-legacy/current and V2 session smoke paths, opens SSE endpoints, and commits the
-verified snapshot back to `main` when it changed.
+pinned upstream source, starts that exact OpenCode server, exercises broad
+read-only/ephemeral V1/current coverage plus the V2 smoke paths, opens SSE
+endpoints, and commits the verified snapshot back to `main` when it changed.
 
 ## Publishing
 

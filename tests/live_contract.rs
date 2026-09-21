@@ -1,3 +1,7 @@
+use unofficial_opencode_sdk::current::{
+    FindFilesOptions as CurrentFindFilesOptions, SessionListOptions as CurrentSessionListOptions,
+    SessionMessagesOptions as CurrentSessionMessagesOptions, VcsDiffMode, VcsDiffOptions,
+};
 use unofficial_opencode_sdk::v2::{
     CreateSessionRequest as V2CreateSessionRequest, FileSystemEntryType, FindFilesOptions,
     ListSessionsOptions,
@@ -27,6 +31,134 @@ async fn live_session_and_sse_contract() {
         .expect("get session");
     assert_eq!(created.id, fetched.id);
 
+    let global_health = client.global().health().await.expect("get global health");
+    assert!(global_health.healthy);
+    client.global().config().await.expect("get global config");
+
+    client
+        .project()
+        .list()
+        .await
+        .expect("list current projects");
+    client
+        .project()
+        .current()
+        .await
+        .expect("get current project");
+    client.pty().list().await.expect("list current ptys");
+    client.pty().shells().await.expect("list current shells");
+    client.config().get().await.expect("get current config");
+    client
+        .config()
+        .providers()
+        .await
+        .expect("get current config providers");
+    client.tool().ids().await.expect("list current tool ids");
+    client.path().get().await.expect("get current path");
+    client.vcs().get().await.expect("get current vcs");
+    client.vcs().status().await.expect("get current vcs status");
+    client
+        .vcs()
+        .diff(&VcsDiffOptions {
+            mode: VcsDiffMode::Git,
+            context: Some(1),
+        })
+        .await
+        .expect("get current vcs diff");
+
+    client
+        .session()
+        .status()
+        .await
+        .expect("get current session status");
+    client
+        .session()
+        .update(
+            &created.id,
+            &serde_json::json!({"title": "current contract smoke updated"}),
+        )
+        .await
+        .expect("update current session");
+    client
+        .session()
+        .children(&created.id)
+        .await
+        .expect("list current session children");
+    client
+        .session()
+        .todo(&created.id)
+        .await
+        .expect("get current session todo");
+    client
+        .session()
+        .messages(&created.id, &CurrentSessionMessagesOptions::default())
+        .await
+        .expect("get current session messages");
+    client
+        .session()
+        .diff(&created.id, None)
+        .await
+        .expect("get current session diff");
+    client
+        .session()
+        .list_with(&CurrentSessionListOptions {
+            limit: Some(20),
+            ..Default::default()
+        })
+        .await
+        .expect("list current sessions with options");
+
+    client
+        .command()
+        .list()
+        .await
+        .expect("list current commands");
+    client
+        .provider()
+        .list()
+        .await
+        .expect("list current providers");
+    client
+        .provider()
+        .auth()
+        .await
+        .expect("list current provider auth methods");
+    client
+        .find()
+        .files(&CurrentFindFilesOptions {
+            query: "package".into(),
+            dirs: Some(false),
+            entry_type: Some("file".into()),
+            limit: Some(20),
+        })
+        .await
+        .expect("find current files");
+    client.file().list(".").await.expect("list current files");
+    client
+        .file()
+        .status()
+        .await
+        .expect("get current file status");
+    client.app().agents().await.expect("list current agents");
+    client.app().skills().await.expect("list current skills");
+    client.mcp().status().await.expect("get current mcp status");
+    client.lsp().status().await.expect("get current lsp status");
+    client
+        .formatter()
+        .status()
+        .await
+        .expect("get current formatter status");
+    client
+        .permission()
+        .list()
+        .await
+        .expect("list current permissions");
+    client
+        .question()
+        .list()
+        .await
+        .expect("list current questions");
+
     let listed = client.session().list().await.expect("list sessions");
     assert!(listed.iter().any(|session| session.id == created.id));
 
@@ -43,6 +175,19 @@ async fn live_session_and_sse_contract() {
             .abort(&created.id)
             .await
             .expect("abort session")
+    );
+
+    let forked = client
+        .session()
+        .fork(&created.id, None)
+        .await
+        .expect("fork current session");
+    assert!(
+        client
+            .session()
+            .delete(&forked.id)
+            .await
+            .expect("delete forked current session")
     );
 
     let v2 = client.v2();
@@ -185,4 +330,12 @@ async fn live_session_and_sse_contract() {
             .expect("get v2 integration");
         assert_eq!(fetched.data.id, integration.id);
     }
+
+    assert!(
+        client
+            .session()
+            .delete(&created.id)
+            .await
+            .expect("delete current smoke session")
+    );
 }

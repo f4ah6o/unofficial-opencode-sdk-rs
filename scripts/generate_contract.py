@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 """Generate the checked-in Rust operation manifest from OpenCode OpenAPI.
 
-This is deliberately small. It validates the operation IDs used by the first
-legacy/current and V2 vertical slices without claiming that current Rust
-generators can correctly translate every OpenAPI 3.1 union in the upstream
-contract.
+The manifest validates all stable legacy/current operations plus the explicitly
+supported V2 preview operations. Experimental/worktree/sync operation families
+are excluded from "current complete" unless they have a stable operation ID
+used by the official SDK (for example tool.*).
 """
 from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -17,65 +18,66 @@ SPEC = ROOT / "spec" / "openapi.json"
 UPSTREAM = ROOT / "spec" / "upstream.json"
 OUTPUT = ROOT / "src" / "generated" / "operations.rs"
 
-OPERATIONS = [
-    ("SESSION_LIST", "session.list"),
-    ("SESSION_GET", "session.get"),
-    ("SESSION_CREATE", "session.create"),
-    ("SESSION_PROMPT", "session.prompt"),
-    ("SESSION_ABORT", "session.abort"),
-    ("EVENT_SUBSCRIBE", "event.subscribe"),
-    ("V2_SESSION_LIST", "v2.session.list"),
-    ("V2_SESSION_GET", "v2.session.get"),
-    ("V2_SESSION_CREATE", "v2.session.create"),
-    ("V2_SESSION_PROMPT", "v2.session.prompt"),
-    ("V2_SESSION_WAIT", "v2.session.wait"),
-    ("V2_SESSION_INTERRUPT", "v2.session.interrupt"),
-    ("V2_SESSION_EVENTS", "v2.session.events"),
-    ("V2_EVENT_SUBSCRIBE", "v2.event.subscribe"),
-    ("V2_MODEL_LIST", "v2.model.list"),
-    ("V2_PROVIDER_LIST", "v2.provider.list"),
-    ("V2_PROVIDER_GET", "v2.provider.get"),
-    ("V2_FS_READ", "v2.fs.read"),
-    ("V2_FS_LIST", "v2.fs.list"),
-    ("V2_FS_FIND", "v2.fs.find"),
-    ("V2_PERMISSION_REQUEST_LIST", "v2.permission.request.list"),
-    ("V2_PERMISSION_SAVED_LIST", "v2.permission.saved.list"),
-    ("V2_PERMISSION_SAVED_REMOVE", "v2.permission.saved.remove"),
-    ("V2_QUESTION_REQUEST_LIST", "v2.question.request.list"),
-    ("V2_SESSION_ACTIVE", "v2.session.active"),
-    ("V2_SESSION_SWITCH_AGENT", "v2.session.switchAgent"),
-    ("V2_SESSION_SWITCH_MODEL", "v2.session.switchModel"),
-    ("V2_SESSION_COMPACT", "v2.session.compact"),
-    ("V2_SESSION_CONTEXT", "v2.session.context"),
-    ("V2_SESSION_HISTORY", "v2.session.history"),
-    ("V2_SESSION_MESSAGE", "v2.session.message"),
-    ("V2_SESSION_MESSAGES", "v2.session.messages"),
-    ("V2_SESSION_REVERT_STAGE", "v2.session.revert.stage"),
-    ("V2_SESSION_REVERT_CLEAR", "v2.session.revert.clear"),
-    ("V2_SESSION_REVERT_COMMIT", "v2.session.revert.commit"),
-    ("V2_SESSION_PERMISSION_LIST", "v2.session.permission.list"),
-    ("V2_SESSION_PERMISSION_CREATE", "v2.session.permission.create"),
-    ("V2_SESSION_PERMISSION_GET", "v2.session.permission.get"),
-    ("V2_SESSION_PERMISSION_REPLY", "v2.session.permission.reply"),
-    ("V2_SESSION_QUESTION_LIST", "v2.session.question.list"),
-    ("V2_SESSION_QUESTION_REPLY", "v2.session.question.reply"),
-    ("V2_SESSION_QUESTION_REJECT", "v2.session.question.reject"),
-    ("V2_HEALTH_GET", "v2.health.get"),
-    ("V2_LOCATION_GET", "v2.location.get"),
-    ("V2_AGENT_LIST", "v2.agent.list"),
-    ("V2_COMMAND_LIST", "v2.command.list"),
-    ("V2_SKILL_LIST", "v2.skill.list"),
-    ("V2_REFERENCE_LIST", "v2.reference.list"),
-    ("V2_INTEGRATION_LIST", "v2.integration.list"),
-    ("V2_INTEGRATION_GET", "v2.integration.get"),
-    ("V2_INTEGRATION_CONNECT_KEY", "v2.integration.connect.key"),
-    ("V2_INTEGRATION_CONNECT_OAUTH", "v2.integration.connect.oauth"),
-    ("V2_INTEGRATION_ATTEMPT_STATUS", "v2.integration.attempt.status"),
-    ("V2_INTEGRATION_ATTEMPT_CANCEL", "v2.integration.attempt.cancel"),
-    ("V2_INTEGRATION_ATTEMPT_COMPLETE", "v2.integration.attempt.complete"),
-    ("V2_CREDENTIAL_UPDATE", "v2.credential.update"),
-    ("V2_CREDENTIAL_REMOVE", "v2.credential.remove"),
-]
+V2_OPERATIONS = {
+    "v2.session.list",
+    "v2.session.get",
+    "v2.session.create",
+    "v2.session.prompt",
+    "v2.session.wait",
+    "v2.session.interrupt",
+    "v2.session.events",
+    "v2.event.subscribe",
+    "v2.model.list",
+    "v2.provider.list",
+    "v2.provider.get",
+    "v2.fs.read",
+    "v2.fs.list",
+    "v2.fs.find",
+    "v2.permission.request.list",
+    "v2.permission.saved.list",
+    "v2.permission.saved.remove",
+    "v2.question.request.list",
+    "v2.session.active",
+    "v2.session.switchAgent",
+    "v2.session.switchModel",
+    "v2.session.compact",
+    "v2.session.context",
+    "v2.session.history",
+    "v2.session.message",
+    "v2.session.messages",
+    "v2.session.revert.stage",
+    "v2.session.revert.clear",
+    "v2.session.revert.commit",
+    "v2.session.permission.list",
+    "v2.session.permission.create",
+    "v2.session.permission.get",
+    "v2.session.permission.reply",
+    "v2.session.question.list",
+    "v2.session.question.reply",
+    "v2.session.question.reject",
+    "v2.health.get",
+    "v2.location.get",
+    "v2.agent.list",
+    "v2.command.list",
+    "v2.skill.list",
+    "v2.reference.list",
+    "v2.integration.list",
+    "v2.integration.get",
+    "v2.integration.connect.key",
+    "v2.integration.connect.oauth",
+    "v2.integration.attempt.status",
+    "v2.integration.attempt.cancel",
+    "v2.integration.attempt.complete",
+    "v2.credential.update",
+    "v2.credential.remove",
+}
+
+CURRENT_EXCLUDED_PREFIXES = (
+    "v2.",
+    "experimental.",
+    "worktree.",
+    "sync.",
+)
 
 
 def operation_index(spec: dict) -> dict[str, tuple[str, str]]:
@@ -92,23 +94,39 @@ def operation_index(spec: dict) -> dict[str, tuple[str, str]]:
     return found
 
 
+def current_operations(index: dict[str, tuple[str, str]]) -> set[str]:
+    return {
+        operation_id
+        for operation_id in index
+        if not operation_id.startswith(CURRENT_EXCLUDED_PREFIXES)
+    }
+
+
+def rust_name(operation_id: str) -> str:
+    return "OP_" + re.sub(r"[^A-Za-z0-9]+", "_", operation_id).upper()
+
+
 def render(spec: dict, upstream: dict) -> str:
     index = operation_index(spec)
-    missing = [operation_id for _, operation_id in OPERATIONS if operation_id not in index]
+    required = current_operations(index) | V2_OPERATIONS
+    missing = sorted(required - index.keys())
     if missing:
-        raise SystemExit(f"pinned OpenAPI contract is missing required operations: {', '.join(missing)}")
+        raise SystemExit(
+            f"pinned OpenAPI contract is missing required operations: {', '.join(missing)}"
+        )
 
     lines = [
         "// @generated by scripts/generate_contract.py. Do not edit by hand.",
         f'pub const CONTRACT_UPSTREAM_SHA: &str = "{upstream["upstream_commit"]}";',
         "",
     ]
-    for rust_name, operation_id in OPERATIONS:
+    for operation_id in sorted(required):
         method, path = index[operation_id]
+        name = rust_name(operation_id)
         lines.extend(
             [
-                f'pub const {rust_name}_METHOD: &str = "{method}";',
-                f'pub const {rust_name}_PATH: &str = "{path}";',
+                f'pub const {name}_METHOD: &str = "{method}";',
+                f'pub const {name}_PATH: &str = "{path}";',
             ]
         )
     return "\n".join(lines) + "\n"
