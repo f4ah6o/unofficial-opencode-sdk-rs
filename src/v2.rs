@@ -109,7 +109,11 @@ impl ClientBuilder {
 #[serde(rename_all = "camelCase")]
 pub struct LocationRef {
     pub directory: String,
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "workspaceID")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "workspaceID"
+    )]
     pub workspace_id: Option<String>,
 }
 
@@ -502,13 +506,11 @@ fn event_stream_from_response(response: reqwest::Response) -> EventStream {
                 None => {
                     state.finished = true;
                     match state.decoder.finish() {
-                        Ok(frames) => {
-                            state.queued.extend(frames.into_iter().map(|frame| Event {
-                                id: frame.id,
-                                event: frame.event,
-                                data: frame.data,
-                            }))
-                        }
+                        Ok(frames) => state.queued.extend(frames.into_iter().map(|frame| Event {
+                            id: frame.id,
+                            event: frame.event,
+                            data: frame.data,
+                        })),
                         Err(error) => return Some((Err(error), state)),
                     }
                 }
