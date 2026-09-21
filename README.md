@@ -25,6 +25,10 @@ already running OpenCode server and provide:
 - `client.events().subscribe()` for the legacy/current `/event` SSE stream;
 - isolated `v2::Client` for OpenCode's preview `/api/*` contract;
 - V2 session `list/create/get/prompt/wait/interrupt/events`;
+- V2 model/provider discovery;
+- V2 filesystem read/list/find;
+- V2 pending/saved permission discovery and saved-permission removal;
+- V2 pending question discovery;
 - V2 native server event subscription at `/api/event`;
 - Basic Auth and directory/workspace context;
 - a pinned, reproducible OpenAPI snapshot and operation manifest.
@@ -180,6 +184,37 @@ v2.session().wait(&session.id).await?;
 
 V2 prompt admission is modeled separately from legacy/current message responses:
 the endpoint durably admits input and returns its admission record.
+
+### V2 models, providers, filesystem, permissions, and questions
+
+```rust
+use unofficial_opencode_sdk::v2::FindFilesOptions;
+
+let models = v2.model().list(None).await?;
+let providers = v2.provider().list(None).await?;
+
+let root = v2.fs().list(None, None).await?;
+let matches = v2
+    .fs()
+    .find(&FindFilesOptions {
+        query: "Cargo".into(),
+        ..Default::default()
+    })
+    .await?;
+
+let pending_permissions = v2.permission().request().list(None).await?;
+let saved_permissions = v2.permission().saved().list(None).await?;
+let pending_questions = v2.question().request().list(None).await?;
+```
+
+These location-aware V2 endpoints use OpenCode's deep-object query shape
+(`location[directory]` / `location[workspace]`). The client's configured
+directory/workspace is used by default; `LocationQuery` can override it for
+one request.
+
+Model/provider records type stable identity and status fields while retaining
+preview provider-specific nested structures as JSON. This keeps the public Rust
+surface useful without pretending the evolving V2 contract is stable.
 
 ### V2 events
 
