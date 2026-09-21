@@ -1,6 +1,8 @@
 use unofficial_opencode_sdk::v2::{
-    CreateSessionRequest, Delivery, FileSystemEntry, FileSystemEntryType, Located, LocationInfo,
-    LocationRef, ModelInfo, ModelRef, ProjectLocationInfo, PromptInput, PromptRequest, Session,
+    CreatePermissionRequest, CreateSessionRequest, Delivery, FileSystemEntry, FileSystemEntryType,
+    Located, LocationInfo, LocationRef, ModelInfo, ModelRef, PermissionReply, PermissionSource,
+    ProjectLocationInfo, PromptInput, PromptRequest, QuestionReplyRequest, ReplyPermissionRequest,
+    RevertStageRequest, Session, SessionHistory,
 };
 
 #[test]
@@ -131,4 +133,61 @@ fn v2_filesystem_entry_type_matches_wire_contract() {
         },
     };
     assert_eq!(location.project.id, "project_1");
+}
+
+#[test]
+fn v2_session_action_bodies_match_upstream() {
+    let revert = RevertStageRequest {
+        message_id: "msg_1".into(),
+        files: Some(true),
+    };
+    let value = serde_json::to_value(revert).unwrap();
+    assert_eq!(value["messageID"], "msg_1");
+    assert_eq!(value["files"], true);
+
+    let permission = CreatePermissionRequest {
+        id: Some("per_1".into()),
+        action: "read".into(),
+        resources: vec!["src/lib.rs".into()],
+        save: vec!["src/*".into()],
+        metadata: Some(serde_json::json!({"reason": "test"})),
+        source: Some(PermissionSource {
+            source_type: "tool".into(),
+            message_id: "msg_1".into(),
+            call_id: "call_1".into(),
+        }),
+        agent: Some("build".into()),
+    };
+    let value = serde_json::to_value(permission).unwrap();
+    assert_eq!(value["id"], "per_1");
+    assert_eq!(value["action"], "read");
+    assert_eq!(value["source"]["type"], "tool");
+    assert_eq!(value["source"]["messageID"], "msg_1");
+    assert_eq!(value["source"]["callID"], "call_1");
+
+    let reply = ReplyPermissionRequest {
+        reply: PermissionReply::Always,
+        message: Some("approved".into()),
+    };
+    let value = serde_json::to_value(reply).unwrap();
+    assert_eq!(value["reply"], "always");
+    assert_eq!(value["message"], "approved");
+
+    let question = QuestionReplyRequest {
+        answers: vec![vec!["A".into()], vec!["B".into(), "C".into()]],
+    };
+    let value = serde_json::to_value(question).unwrap();
+    assert_eq!(value["answers"][0][0], "A");
+    assert_eq!(value["answers"][1][1], "C");
+}
+
+#[test]
+fn v2_session_history_uses_camel_case_has_more() {
+    let history: SessionHistory = serde_json::from_value(serde_json::json!({
+        "data": [{"type": "session.created"}],
+        "hasMore": true
+    }))
+    .unwrap();
+    assert!(history.has_more);
+    assert_eq!(history.data.len(), 1);
 }
