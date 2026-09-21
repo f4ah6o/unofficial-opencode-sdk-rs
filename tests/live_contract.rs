@@ -1,5 +1,6 @@
 use unofficial_opencode_sdk::v2::{
-    CreateSessionRequest as V2CreateSessionRequest, ListSessionsOptions,
+    CreateSessionRequest as V2CreateSessionRequest, FileSystemEntryType, FindFilesOptions,
+    ListSessionsOptions,
 };
 use unofficial_opencode_sdk::{Client, CreateSessionRequest};
 
@@ -74,4 +75,57 @@ async fn live_session_and_sse_contract() {
         .interrupt(&v2_created.id)
         .await
         .expect("interrupt v2 session");
+
+    let models = v2.model().list(None).await.expect("list v2 models");
+    assert!(!models.location.directory.is_empty());
+
+    let providers = v2.provider().list(None).await.expect("list v2 providers");
+    assert!(!providers.location.directory.is_empty());
+    if let Some(provider) = providers.data.first() {
+        let fetched_provider = v2
+            .provider()
+            .get(&provider.id, None)
+            .await
+            .expect("get v2 provider");
+        assert_eq!(provider.id, fetched_provider.data.id);
+    }
+
+    let fs_entries = v2.fs().list(None, None).await.expect("list v2 filesystem");
+    assert!(!fs_entries.location.directory.is_empty());
+    if let Some(file) = fs_entries
+        .data
+        .iter()
+        .find(|entry| entry.entry_type == FileSystemEntryType::File)
+    {
+        v2.fs()
+            .read(&file.path, None)
+            .await
+            .expect("read v2 filesystem file");
+    }
+
+    v2.fs()
+        .find(&FindFilesOptions {
+            query: "package".into(),
+            ..Default::default()
+        })
+        .await
+        .expect("find v2 filesystem entries");
+
+    v2.permission()
+        .request()
+        .list(None)
+        .await
+        .expect("list v2 permission requests");
+
+    v2.permission()
+        .saved()
+        .list(None)
+        .await
+        .expect("list v2 saved permissions");
+
+    v2.question()
+        .request()
+        .list(None)
+        .await
+        .expect("list v2 question requests");
 }
