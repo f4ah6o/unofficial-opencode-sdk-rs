@@ -35,8 +35,16 @@ async fn live_session_and_sse_contract() {
     assert!(global_health.healthy);
     client.global().config().await.expect("get global config");
 
-    client.project().list().await.expect("list current projects");
-    client.project().current().await.expect("get current project");
+    client
+        .project()
+        .list()
+        .await
+        .expect("list current projects");
+    client
+        .project()
+        .current()
+        .await
+        .expect("get current project");
     client.pty().list().await.expect("list current ptys");
     client.pty().shells().await.expect("list current shells");
     client.config().get().await.expect("get current config");
@@ -100,8 +108,16 @@ async fn live_session_and_sse_contract() {
         .await
         .expect("list current sessions with options");
 
-    client.command().list().await.expect("list current commands");
-    client.provider().list().await.expect("list current providers");
+    client
+        .command()
+        .list()
+        .await
+        .expect("list current commands");
+    client
+        .provider()
+        .list()
+        .await
+        .expect("list current providers");
     client
         .provider()
         .auth()
@@ -118,7 +134,11 @@ async fn live_session_and_sse_contract() {
         .await
         .expect("find current files");
     client.file().list(".").await.expect("list current files");
-    client.file().status().await.expect("get current file status");
+    client
+        .file()
+        .status()
+        .await
+        .expect("get current file status");
     client.app().agents().await.expect("list current agents");
     client.app().skills().await.expect("list current skills");
     client.mcp().status().await.expect("get current mcp status");
