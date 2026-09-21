@@ -185,7 +185,10 @@ pub struct ModelApi<'a> {
 }
 
 impl ModelApi<'_> {
-    pub async fn list(&self, location: Option<&LocationQuery>) -> Result<Located<Vec<ModelInfo>>, Error> {
+    pub async fn list(
+        &self,
+        location: Option<&LocationQuery>,
+    ) -> Result<Located<Vec<ModelInfo>>, Error> {
         let mut url = self.client.inner.url("api/model")?;
         apply_location(&mut url, self.client, location);
         let response = self
@@ -244,11 +247,7 @@ pub struct FsApi<'a> {
 
 impl FsApi<'_> {
     /// Read a file relative to the requested V2 location.
-    pub async fn read(
-        &self,
-        path: &str,
-        location: Option<&LocationQuery>,
-    ) -> Result<Bytes, Error> {
+    pub async fn read(&self, path: &str, location: Option<&LocationQuery>) -> Result<Bytes, Error> {
         let mut url = self
             .client
             .inner
@@ -367,7 +366,8 @@ impl SavedPermissionApi<'_> {
             .request_url(Method::GET, url)
             .send()
             .await?;
-        let envelope: DataEnvelope<Vec<SavedPermission>> = self.client.inner.decode(response).await?;
+        let envelope: DataEnvelope<Vec<SavedPermission>> =
+            self.client.inner.decode(response).await?;
         Ok(envelope.data)
     }
 
