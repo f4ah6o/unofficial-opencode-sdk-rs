@@ -169,7 +169,7 @@ impl ClientBuilder {
 }
 
 pub struct SessionApi<'a> {
-    client: &'a Client,
+    pub(crate) client: &'a Client,
 }
 
 impl SessionApi<'_> {
