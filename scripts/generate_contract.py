@@ -32,6 +32,16 @@ OPERATIONS = [
     ("V2_SESSION_INTERRUPT", "v2.session.interrupt"),
     ("V2_SESSION_EVENTS", "v2.session.events"),
     ("V2_EVENT_SUBSCRIBE", "v2.event.subscribe"),
+    ("V2_MODEL_LIST", "v2.model.list"),
+    ("V2_PROVIDER_LIST", "v2.provider.list"),
+    ("V2_PROVIDER_GET", "v2.provider.get"),
+    ("V2_FS_READ", "v2.fs.read"),
+    ("V2_FS_LIST", "v2.fs.list"),
+    ("V2_FS_FIND", "v2.fs.find"),
+    ("V2_PERMISSION_REQUEST_LIST", "v2.permission.request.list"),
+    ("V2_PERMISSION_SAVED_LIST", "v2.permission.saved.list"),
+    ("V2_PERMISSION_SAVED_REMOVE", "v2.permission.saved.remove"),
+    ("V2_QUESTION_REQUEST_LIST", "v2.question.request.list"),
 ]
 
 
