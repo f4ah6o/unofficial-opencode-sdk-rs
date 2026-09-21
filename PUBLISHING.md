@@ -21,7 +21,7 @@ cargo publish --dry-run
 ```
 
 Normal GitHub Actions CI runs the same package dry-run and also verifies the
-declared Rust 1.85 MSRV.
+declared Rust 1.87 MSRV.
 
 ## First crates.io publication
 
