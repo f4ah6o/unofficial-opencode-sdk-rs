@@ -1,8 +1,8 @@
 use unofficial_opencode_sdk::current::{
     FindFilesOptions, LogLevel, LogRequest, McpAddRequest, PermissionReplyRequest,
     ProviderOauthAuthorizeRequest, ProviderOauthCallbackRequest, PtyCreateRequest,
-    QuestionReplyRequest, SessionListOptions, SessionMessagesOptions, ToolListOptions,
-    VcsDiffMode, VcsDiffOptions,
+    QuestionReplyRequest, SessionListOptions, SessionMessagesOptions, ToolListOptions, VcsDiffMode,
+    VcsDiffOptions,
 };
 
 #[test]
