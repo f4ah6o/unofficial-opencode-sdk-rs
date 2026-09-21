@@ -30,7 +30,7 @@
   "rust_generation": {
     "selected": "scripts/generate_contract.py",
     "selected_version": "0.1.0",
-    "scope": "operation manifest and pinned contract validation for the legacy/current and V2 preview vertical slices",
+    "scope": "all stable legacy/current operations except experimental/worktree/sync families, plus explicitly supported V2 preview operations",
     "evaluated": {
       "openapi-generator-rust": "Rejected for whole-document model generation: current feature matrix reports no anyOf/union/null support required by this OpenAPI 3.1 contract.",
       "progenitor-0.15.0": "Rejected for whole-document generation in this slice: its documented input target is OpenAPI 3.0.x while OpenCode emits OpenAPI 3.1."
