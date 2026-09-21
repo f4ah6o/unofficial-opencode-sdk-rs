@@ -38,10 +38,7 @@ impl SseDecoder {
 
     fn drain(&mut self, flush: bool) -> Result<Vec<SseFrame>, Error> {
         let mut frames = Vec::new();
-        loop {
-            let Some((end, separator_len)) = find_separator(&self.buffer) else {
-                break;
-            };
+        while let Some((end, separator_len)) = find_separator(&self.buffer) {
             let raw: Vec<u8> = self.buffer.drain(..end + separator_len).collect();
             if let Some(frame) = parse_frame(&raw[..end])? {
                 frames.push(frame);
