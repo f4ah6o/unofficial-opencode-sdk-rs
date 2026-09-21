@@ -1,4 +1,4 @@
-use opencode_sdk::{CreateSessionRequest, ModelRef, PromptPart, PromptRequest};
+use unofficial_opencode_sdk::{CreateSessionRequest, ModelRef, PromptPart, PromptRequest};
 
 #[test]
 fn request_shapes_use_upstream_camel_case() {
