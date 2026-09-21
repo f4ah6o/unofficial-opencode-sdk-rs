@@ -19,6 +19,9 @@ use serde_json::Value;
 
 use crate::{Error, SseDecoder};
 
+mod resources;
+pub use resources::*;
+
 /// V2 client for OpenCode's `/api/*` HTTP surface.
 #[derive(Clone)]
 pub struct Client {

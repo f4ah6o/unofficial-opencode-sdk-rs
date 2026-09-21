@@ -1,5 +1,6 @@
 use unofficial_opencode_sdk::v2::{
-    CreateSessionRequest, Delivery, LocationRef, ModelRef, PromptInput, PromptRequest, Session,
+    CreateSessionRequest, Delivery, FileSystemEntry, FileSystemEntryType, Located, LocationInfo,
+    LocationRef, ModelInfo, ModelRef, ProjectLocationInfo, PromptInput, PromptRequest, Session,
 };
 
 #[test]
@@ -72,4 +73,62 @@ fn v2_session_response_uses_id_acronym_fields() {
     assert_eq!(session.project_id, "project_1");
     assert_eq!(session.model.unwrap().provider_id, "provider");
     assert_eq!(session.location.workspace_id.as_deref(), Some("ws_1"));
+}
+
+#[test]
+fn v2_resource_envelopes_preserve_preview_fields() {
+    let value = serde_json::json!({
+        "location": {
+            "directory": "/tmp/project",
+            "workspaceID": "wrk_1",
+            "project": {
+                "id": "project_1",
+                "directory": "/tmp/project"
+            }
+        },
+        "data": [{
+            "id": "model_1",
+            "providerID": "provider_1",
+            "family": "family",
+            "name": "Model",
+            "api": {},
+            "capabilities": {},
+            "request": {},
+            "variants": [],
+            "time": {"released": 1},
+            "cost": [],
+            "status": "active",
+            "enabled": true,
+            "limit": {"context": 1000, "output": 100},
+            "futureField": true
+        }]
+    });
+
+    let models: Located<Vec<ModelInfo>> = serde_json::from_value(value).unwrap();
+    assert_eq!(models.location.workspace_id.as_deref(), Some("wrk_1"));
+    assert_eq!(models.data[0].provider_id, "provider_1");
+    assert_eq!(
+        models.data[0].extra.get("futureField"),
+        Some(&serde_json::Value::Bool(true))
+    );
+}
+
+#[test]
+fn v2_filesystem_entry_type_matches_wire_contract() {
+    let entry: FileSystemEntry = serde_json::from_value(serde_json::json!({
+        "path": "src/lib.rs",
+        "type": "file"
+    }))
+    .unwrap();
+    assert_eq!(entry.entry_type, FileSystemEntryType::File);
+
+    let location = LocationInfo {
+        directory: "/tmp/project".into(),
+        workspace_id: None,
+        project: ProjectLocationInfo {
+            id: "project_1".into(),
+            directory: "/tmp/project".into(),
+        },
+    };
+    assert_eq!(location.project.id, "project_1");
 }
