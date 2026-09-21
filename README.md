@@ -180,4 +180,5 @@ cargo doc --no-deps --all-features
 
 The contract workflow additionally generates the OpenAPI snapshot from the
 pinned upstream source, starts that exact OpenCode server, creates/lists/gets/
-aborts a session, and opens the SSE endpoint.
+aborts a session, opens the SSE endpoint, and commits the verified snapshot
+back to `main` when it changed.
