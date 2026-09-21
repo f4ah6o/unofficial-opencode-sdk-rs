@@ -18,6 +18,7 @@ struct Inner {
     base_url: Url,
     http: reqwest::Client,
     directory: Option<String>,
+    workspace: Option<String>,
     username: Option<String>,
     password: Option<String>,
 }
@@ -27,6 +28,7 @@ pub struct ClientBuilder {
     base_url: Option<String>,
     http: Option<reqwest::Client>,
     directory: Option<String>,
+    workspace: Option<String>,
     username: Option<String>,
     password: Option<String>,
 }
@@ -70,16 +72,26 @@ impl Client {
         Ok(self.request_url(method, self.url(path)?))
     }
 
-    fn request(&self, method: Method, path: &str) -> Result<RequestBuilder, Error> {
+    pub(crate) fn request(&self, method: Method, path: &str) -> Result<RequestBuilder, Error> {
         let mut url = self.url(path)?;
-        if let Some(directory) = &self.inner.directory {
-            url.query_pairs_mut().append_pair("directory", directory);
+        {
+            let mut query = url.query_pairs_mut();
+            if let Some(directory) = &self.inner.directory {
+                query.append_pair("directory", directory);
+            }
+            if let Some(workspace) = &self.inner.workspace {
+                query.append_pair("workspace", workspace);
+            }
         }
         Ok(self.request_url(method, url))
     }
 
     pub(crate) fn configured_directory(&self) -> Option<&str> {
         self.inner.directory.as_deref()
+    }
+
+    pub(crate) fn configured_workspace(&self) -> Option<&str> {
+        self.inner.workspace.as_deref()
     }
 
     pub(crate) async fn decode<T: DeserializeOwned>(&self, response: Response) -> Result<T, Error> {
@@ -114,6 +126,12 @@ impl ClientBuilder {
         self
     }
 
+    /// Set the OpenCode workspace routing context.
+    pub fn workspace(mut self, workspace: impl Into<String>) -> Self {
+        self.workspace = Some(workspace.into());
+        self
+    }
+
     /// Configure the Basic Auth contract used by OpenCode server when
     /// `OPENCODE_SERVER_PASSWORD` is set.
     pub fn basic_auth(mut self, username: impl Into<String>, password: impl Into<String>) -> Self {
@@ -142,6 +160,7 @@ impl ClientBuilder {
                 base_url,
                 http: self.http.unwrap_or_default(),
                 directory: self.directory,
+                workspace: self.workspace,
                 username: self.username,
                 password: self.password,
             }),
