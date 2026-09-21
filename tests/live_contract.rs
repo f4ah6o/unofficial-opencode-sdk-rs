@@ -170,10 +170,7 @@ async fn live_session_and_sse_contract() {
     v2.agent().list(None).await.expect("list v2 agents");
     v2.command().list(None).await.expect("list v2 commands");
     v2.skill().list(None).await.expect("list v2 skills");
-    v2.reference()
-        .list(None)
-        .await
-        .expect("list v2 references");
+    v2.reference().list(None).await.expect("list v2 references");
 
     let integrations = v2
         .integration()
