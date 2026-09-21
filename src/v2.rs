@@ -48,10 +48,11 @@ impl Client {
 
     pub(crate) fn from_current(client: crate::Client) -> Self {
         let directory = client.configured_directory().map(str::to_owned);
+        let workspace_id = client.configured_workspace().map(str::to_owned);
         Self {
             inner: client,
             directory,
-            workspace_id: None,
+            workspace_id,
         }
     }
 
