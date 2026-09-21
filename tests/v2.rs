@@ -1,8 +1,9 @@
 use unofficial_opencode_sdk::v2::{
-    CreatePermissionRequest, CreateSessionRequest, Delivery, FileSystemEntry, FileSystemEntryType,
-    Located, LocationInfo, LocationRef, ModelInfo, ModelRef, PermissionReply, PermissionSource,
-    ProjectLocationInfo, PromptInput, PromptRequest, QuestionReplyRequest, ReplyPermissionRequest,
-    RevertStageRequest, Session, SessionHistory,
+    AgentInfo, CreatePermissionRequest, CreateSessionRequest, Delivery, FileSystemEntry,
+    FileSystemEntryType, IntegrationKeyRequest, IntegrationOauthRequest, Located, LocationInfo,
+    LocationRef, ModelInfo, ModelRef, PermissionReply, PermissionSource, ProjectLocationInfo,
+    PromptInput, PromptRequest, QuestionReplyRequest, ReplyPermissionRequest, RevertStageRequest,
+    Session, SessionHistory,
 };
 
 #[test]
@@ -190,4 +191,43 @@ fn v2_session_history_uses_camel_case_has_more() {
     .unwrap();
     assert!(history.has_more);
     assert_eq!(history.data.len(), 1);
+}
+
+#[test]
+fn v2_discovery_records_preserve_preview_fields() {
+    let value = serde_json::json!({
+        "id": "build",
+        "request": {"headers": {}},
+        "mode": "primary",
+        "hidden": false,
+        "permissions": {},
+        "futureAgentField": 42
+    });
+    let agent: AgentInfo = serde_json::from_value(value).unwrap();
+    assert_eq!(agent.id, "build");
+    assert_eq!(
+        agent.extra.get("futureAgentField"),
+        Some(&serde_json::json!(42))
+    );
+}
+
+#[test]
+fn v2_integration_connect_bodies_match_upstream() {
+    let key = IntegrationKeyRequest {
+        key: "secret".into(),
+        label: Some("work".into()),
+    };
+    let value = serde_json::to_value(key).unwrap();
+    assert_eq!(value["key"], "secret");
+    assert_eq!(value["label"], "work");
+
+    let oauth = IntegrationOauthRequest {
+        method_id: "oauth".into(),
+        inputs: [("region".into(), "us".into())].into_iter().collect(),
+        label: Some("work".into()),
+    };
+    let value = serde_json::to_value(oauth).unwrap();
+    assert_eq!(value["methodID"], "oauth");
+    assert_eq!(value["inputs"]["region"], "us");
+    assert_eq!(value["label"], "work");
 }
