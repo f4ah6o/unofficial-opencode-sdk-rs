@@ -14,14 +14,17 @@ pub struct Session {
     #[serde(default)]
     pub slug: Option<String>,
     #[serde(default)]
+    #[serde(rename = "projectID")]
     pub project_id: Option<String>,
     #[serde(default)]
+    #[serde(rename = "workspaceID")]
     pub workspace_id: Option<String>,
     #[serde(default)]
     pub directory: Option<String>,
     #[serde(default)]
     pub path: Option<String>,
     #[serde(default)]
+    #[serde(rename = "parentID")]
     pub parent_id: Option<String>,
     pub title: String,
     #[serde(default)]
@@ -69,7 +72,9 @@ pub struct CreateSessionRequest {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ModelRef {
+    #[serde(rename = "providerID")]
     pub provider_id: String,
+    #[serde(rename = "modelID")]
     pub model_id: String,
 }
 
@@ -114,6 +119,7 @@ impl PromptPart {
 #[serde(rename_all = "camelCase")]
 pub struct PromptRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "messageID")]
     pub message_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model: Option<ModelRef>,
