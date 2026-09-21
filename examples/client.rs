@@ -1,4 +1,4 @@
-use opencode_sdk::{Client, CreateSessionRequest, PromptPart, PromptRequest};
+use unofficial_opencode_sdk::{Client, CreateSessionRequest, PromptPart, PromptRequest};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
