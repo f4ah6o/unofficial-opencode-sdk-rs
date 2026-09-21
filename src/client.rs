@@ -57,11 +57,7 @@ impl Client {
         Ok(self.inner.base_url.join(path.trim_start_matches('/'))?)
     }
 
-    pub(crate) fn request_base(
-        &self,
-        method: Method,
-        path: &str,
-    ) -> Result<RequestBuilder, Error> {
+    pub(crate) fn request_base(&self, method: Method, path: &str) -> Result<RequestBuilder, Error> {
         let url = self.url(path)?;
         let mut request = self.inner.http.request(method, url);
         if let Some(password) = &self.inner.password {
@@ -88,10 +84,7 @@ impl Client {
         self.inner.directory.as_deref()
     }
 
-    pub(crate) async fn decode<T: DeserializeOwned>(
-        &self,
-        response: Response,
-    ) -> Result<T, Error> {
+    pub(crate) async fn decode<T: DeserializeOwned>(&self, response: Response) -> Result<T, Error> {
         if response.status().is_success() {
             return Ok(response.json().await?);
         }
