@@ -24,7 +24,8 @@ already running OpenCode server and provide:
 - `client.session().create/list/get/prompt/abort`;
 - `client.events().subscribe()` for the legacy/current `/event` SSE stream;
 - isolated `v2::Client` for OpenCode's preview `/api/*` contract;
-- V2 session `list/create/get/prompt/wait/interrupt/events`;
+- V2 session `list/create/get/active/switch-agent/switch-model/prompt/compact/wait/context/history/message/messages/events/interrupt`;
+- V2 per-session revert, permission, and question operations;
 - V2 model/provider discovery;
 - V2 filesystem read/list/find;
 - V2 pending/saved permission discovery and saved-permission removal;
@@ -180,10 +181,36 @@ let admitted = v2
     .await?;
 
 v2.session().wait(&session.id).await?;
+
+let context = v2.session().context(&session.id).await?;
+let history = v2.session().history(&session.id, Some(50), None).await?;
+let messages = v2
+    .session()
+    .messages(&session.id, &Default::default())
+    .await?;
+
+let pending_permissions = v2.session().permission(&session.id).list().await?;
+let pending_questions = v2.session().question(&session.id).list().await?;
 ```
 
 V2 prompt admission is modeled separately from legacy/current message responses:
 the endpoint durably admits input and returns its admission record.
+
+Session message and durable-history unions are kept as raw JSON in this preview
+surface because upstream V2 currently exposes several message/event variants.
+The surrounding pagination and lifecycle structures remain typed.
+
+Per-session helpers follow the official SDK grouping:
+
+```rust
+let permissions = v2.session().permission(&session.id);
+let questions = v2.session().question(&session.id);
+let revert = v2.session().revert(&session.id);
+```
+
+Permission/question reply and revert operations are available, but CI does not
+create artificial pending approvals/questions or mutate repository files merely
+to exercise destructive workflow paths.
 
 ### V2 models, providers, filesystem, permissions, and questions
 
@@ -295,7 +322,7 @@ changes require a new snapshot and SDK update.
 
 ## Known limitations
 
-- only representative session slices have ergonomic facades;
+- V2 session coverage is broad, but message/durable-event variant payloads remain raw JSON while upstream V2 is preview;
 - V2 remains preview upstream and is not claimed stable;
 - full OpenAPI 3.1 model generation is not yet enabled;
 - legacy/current non-text prompt parts currently use a JSON escape hatch;
