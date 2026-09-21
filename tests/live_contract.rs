@@ -76,6 +76,38 @@ async fn live_session_and_sse_contract() {
         .await
         .expect("interrupt v2 session");
 
+    v2.session()
+        .active()
+        .await
+        .expect("list active v2 sessions");
+
+    v2.session()
+        .context(&v2_created.id)
+        .await
+        .expect("get v2 session context");
+
+    v2.session()
+        .history(&v2_created.id, Some(20), None)
+        .await
+        .expect("get v2 session history");
+
+    v2.session()
+        .messages(&v2_created.id, &Default::default())
+        .await
+        .expect("get v2 session messages");
+
+    v2.session()
+        .permission(&v2_created.id)
+        .list()
+        .await
+        .expect("list v2 session permissions");
+
+    v2.session()
+        .question(&v2_created.id)
+        .list()
+        .await
+        .expect("list v2 session questions");
+
     let models = v2.model().list(None).await.expect("list v2 models");
     assert!(!models.location.directory.is_empty());
 

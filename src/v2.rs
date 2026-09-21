@@ -20,7 +20,9 @@ use serde_json::Value;
 use crate::{Error, SseDecoder};
 
 mod resources;
+mod session;
 pub use resources::*;
+pub use session::*;
 
 /// V2 client for OpenCode's `/api/*` HTTP surface.
 #[derive(Clone)]
