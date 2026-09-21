@@ -60,6 +60,21 @@ OPERATIONS = [
     ("V2_SESSION_QUESTION_LIST", "v2.session.question.list"),
     ("V2_SESSION_QUESTION_REPLY", "v2.session.question.reply"),
     ("V2_SESSION_QUESTION_REJECT", "v2.session.question.reject"),
+    ("V2_HEALTH_GET", "v2.health.get"),
+    ("V2_LOCATION_GET", "v2.location.get"),
+    ("V2_AGENT_LIST", "v2.agent.list"),
+    ("V2_COMMAND_LIST", "v2.command.list"),
+    ("V2_SKILL_LIST", "v2.skill.list"),
+    ("V2_REFERENCE_LIST", "v2.reference.list"),
+    ("V2_INTEGRATION_LIST", "v2.integration.list"),
+    ("V2_INTEGRATION_GET", "v2.integration.get"),
+    ("V2_INTEGRATION_CONNECT_KEY", "v2.integration.connect.key"),
+    ("V2_INTEGRATION_CONNECT_OAUTH", "v2.integration.connect.oauth"),
+    ("V2_INTEGRATION_ATTEMPT_STATUS", "v2.integration.attempt.status"),
+    ("V2_INTEGRATION_ATTEMPT_CANCEL", "v2.integration.attempt.cancel"),
+    ("V2_INTEGRATION_ATTEMPT_COMPLETE", "v2.integration.attempt.complete"),
+    ("V2_CREDENTIAL_UPDATE", "v2.credential.update"),
+    ("V2_CREDENTIAL_REMOVE", "v2.credential.remove"),
 ]
 
 
