@@ -16,14 +16,28 @@ async fn live_session_and_sse_contract() {
         .await
         .expect("create session");
 
-    let fetched = client.session().get(&created.id).await.expect("get session");
+    let fetched = client
+        .session()
+        .get(&created.id)
+        .await
+        .expect("get session");
     assert_eq!(created.id, fetched.id);
 
     let listed = client.session().list().await.expect("list sessions");
     assert!(listed.iter().any(|session| session.id == created.id));
 
-    let stream = client.events().subscribe().await.expect("connect SSE endpoint");
+    let stream = client
+        .events()
+        .subscribe()
+        .await
+        .expect("connect SSE endpoint");
     drop(stream);
 
-    assert!(client.session().abort(&created.id).await.expect("abort session"));
+    assert!(
+        client
+            .session()
+            .abort(&created.id)
+            .await
+            .expect("abort session")
+    );
 }

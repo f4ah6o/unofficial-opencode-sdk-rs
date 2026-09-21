@@ -4,8 +4,8 @@ use std::task::{Context, Poll};
 
 use bytes::Bytes;
 use futures_core::Stream;
-use futures_util::stream::{self, BoxStream};
 use futures_util::StreamExt;
+use futures_util::stream::{self, BoxStream};
 use serde_json::Value;
 
 use crate::Error;
@@ -164,10 +164,7 @@ impl OpenCodeEvent {
                     Some(kind) => EventData::Known(KnownEvent {
                         kind,
                         event_type: event_type.unwrap_or_default().to_owned(),
-                        properties: value
-                            .get("properties")
-                            .cloned()
-                            .unwrap_or(Value::Null),
+                        properties: value.get("properties").cloned().unwrap_or(Value::Null),
                         value,
                     }),
                     None => EventData::Unknown(value),
@@ -255,7 +252,12 @@ mod tests {
     #[test]
     fn fragmented_and_multiple_events() {
         let mut decoder = SseDecoder::new();
-        assert!(decoder.push(b"data: {\"type\":\"session.").unwrap().is_empty());
+        assert!(
+            decoder
+                .push(b"data: {\"type\":\"session.")
+                .unwrap()
+                .is_empty()
+        );
         let frames = decoder
             .push(b"created\"}\n\ndata: {\"type\":\"future\"}\n\n")
             .unwrap();
@@ -303,7 +305,12 @@ mod tests {
     #[test]
     fn finish_flushes_final_frame() {
         let mut decoder = SseDecoder::new();
-        assert!(decoder.push(b"data: {\"type\":\"session.status\"}").unwrap().is_empty());
+        assert!(
+            decoder
+                .push(b"data: {\"type\":\"session.status\"}")
+                .unwrap()
+                .is_empty()
+        );
         assert_eq!(decoder.finish().unwrap().len(), 1);
     }
 }
