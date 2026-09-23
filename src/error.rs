@@ -31,4 +31,8 @@ pub enum Error {
     Api(#[from] ApiError),
     #[error("SSE protocol error: {0}")]
     Sse(String),
+    #[error("response decode error: {0}")]
+    Decode(#[from] serde_json::Error),
+    #[error("not available on this OpenCode server: {0}")]
+    Unsupported(&'static str),
 }

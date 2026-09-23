@@ -4,12 +4,15 @@ use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use super::{Client, Located, LocationInfo, LocationQuery, ModelRef};
+use super::{Client, Located, LocationInfo, LocationQuery, ModelRef, ServeDialect};
 use crate::Error;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Health {
     pub healthy: bool,
+    /// OpenCode 2.x `api/info` fields (`version`, `pid`, `urls`, `paths`).
+    #[serde(flatten)]
+    pub extra: BTreeMap<String, Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -37,7 +40,9 @@ pub struct AgentInfo {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CommandInfo {
     pub name: String,
-    pub template: String,
+    /// OpenCode 2.x only ships `description`; `template` is 1.x-preview data.
+    #[serde(default)]
+    pub template: Option<String>,
     #[serde(default)]
     pub description: Option<String>,
     #[serde(default)]
@@ -57,7 +62,10 @@ pub struct SkillInfo {
     pub description: Option<String>,
     #[serde(default)]
     pub slash: Option<bool>,
-    pub location: String,
+    /// 1.x-preview field; 2.x exposes the file as `path` instead.
+    #[serde(default)]
+    pub location: Option<String>,
+    #[serde(default)]
     pub content: String,
     #[serde(flatten)]
     pub extra: BTreeMap<String, Value>,
@@ -145,14 +153,41 @@ pub struct HealthApi<'a> {
 }
 
 impl HealthApi<'_> {
+    /// Liveness check: `api/health` on OpenCode 1.x, `api/info` on 2.x.
     pub async fn get(&self) -> Result<Health, Error> {
-        let response = self
-            .client
-            .inner
-            .request_base(Method::GET, "api/health")?
-            .send()
-            .await?;
-        self.client.inner.decode(response).await
+        match self.client.serve_dialect().await? {
+            ServeDialect::Preview1x => {
+                let response = self
+                    .client
+                    .inner
+                    .request_base(Method::GET, "api/health")?
+                    .send()
+                    .await?;
+                self.client.inner.decode(response).await
+            }
+            ServeDialect::Native2x => {
+                let response = self
+                    .client
+                    .inner
+                    .request_base(Method::GET, "api/info")?
+                    .send()
+                    .await?;
+                let info: Value = self.client.inner.decode(response).await?;
+                let mut extra = match info {
+                    Value::Object(map) => map,
+                    other => {
+                        let mut map = serde_json::Map::new();
+                        map.insert("info".to_owned(), other);
+                        map
+                    }
+                };
+                extra.remove("healthy");
+                Ok(Health {
+                    healthy: true,
+                    extra: extra.into_iter().collect(),
+                })
+            }
+        }
     }
 }
 
@@ -363,11 +398,22 @@ pub struct IntegrationAttemptApi<'a> {
 }
 
 impl IntegrationAttemptApi<'_> {
+    /// Poll an OAuth/command connect attempt.
+    ///
+    /// OpenCode 2.x moved attempt polling under
+    /// `api/integration/{id}/connect/{command|oauth}/{attemptID}`; this
+    /// method only covers the 1.x preview route and returns
+    /// [`Error::Unsupported`] on OpenCode 2.x.
     pub async fn status(
         &self,
         attempt_id: &str,
         location: Option<&LocationQuery>,
     ) -> Result<Located<IntegrationAttemptStatus>, Error> {
+        if self.client.serve_dialect().await? == ServeDialect::Native2x {
+            return Err(Error::Unsupported(
+                "api/integration/attempt is 1.x only; use api/integration/{id}/connect/{command|oauth}/{attemptID} on 2.x",
+            ));
+        }
         let mut url = self
             .client
             .inner
@@ -387,6 +433,11 @@ impl IntegrationAttemptApi<'_> {
         attempt_id: &str,
         location: Option<&LocationQuery>,
     ) -> Result<(), Error> {
+        if self.client.serve_dialect().await? == ServeDialect::Native2x {
+            return Err(Error::Unsupported(
+                "api/integration/attempt is 1.x only; use api/integration/{id}/connect/{command|oauth}/{attemptID} on 2.x",
+            ));
+        }
         let mut url = self
             .client
             .inner
@@ -407,6 +458,11 @@ impl IntegrationAttemptApi<'_> {
         body: &IntegrationAttemptCompleteRequest,
         location: Option<&LocationQuery>,
     ) -> Result<(), Error> {
+        if self.client.serve_dialect().await? == ServeDialect::Native2x {
+            return Err(Error::Unsupported(
+                "api/integration/attempt is 1.x only; use api/integration/{id}/connect/{command|oauth}/{attemptID} on 2.x",
+            ));
+        }
         let mut url = self
             .client
             .inner
@@ -428,6 +484,31 @@ pub struct CredentialApi<'a> {
 }
 
 impl CredentialApi<'_> {
+    /// Activate a stored credential (OpenCode 2.x only).
+    pub async fn activate(
+        &self,
+        credential_id: &str,
+        location: Option<&LocationQuery>,
+    ) -> Result<(), Error> {
+        if self.client.serve_dialect().await? != ServeDialect::Native2x {
+            return Err(Error::Unsupported(
+                "api/credential/{id}/activate requires OpenCode 2.x",
+            ));
+        }
+        let mut url = self
+            .client
+            .inner
+            .url(&format!("api/credential/{credential_id}/activate"))?;
+        super::resources::apply_location(&mut url, self.client, location);
+        let response = self
+            .client
+            .inner
+            .request_url(Method::POST, url)
+            .send()
+            .await?;
+        self.client.inner.ensure_success(response).await
+    }
+
     pub async fn update(
         &self,
         credential_id: &str,

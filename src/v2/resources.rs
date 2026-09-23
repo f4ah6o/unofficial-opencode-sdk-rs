@@ -5,7 +5,7 @@ use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use super::Client;
+use super::{Client, ServeDialect};
 use crate::Error;
 
 /// Per-request V2 location override.
@@ -32,7 +32,10 @@ pub struct LocationInfo {
     pub directory: String,
     #[serde(default, rename = "workspaceID")]
     pub workspace_id: Option<String>,
-    pub project: ProjectLocationInfo,
+    /// `GET api/location` fills this; 2.x list envelopes return the
+    /// public location ref without `project`.
+    #[serde(default)]
+    pub project: Option<ProjectLocationInfo>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -54,8 +57,11 @@ pub struct ModelInfo {
     #[serde(default)]
     pub family: Option<String>,
     pub name: String,
+    /// 1.x-preview fields; 2.x reports `package`/`compatibility` instead.
+    #[serde(default)]
     pub api: Value,
     pub capabilities: Value,
+    #[serde(default)]
     pub request: Value,
     #[serde(default)]
     pub variants: Vec<Value>,
@@ -76,9 +82,13 @@ pub struct ProviderInfo {
     #[serde(default, rename = "integrationID")]
     pub integration_id: Option<String>,
     pub name: String,
+    /// 1.x-preview flag; 2.x reports readiness as `activation` instead.
     #[serde(default)]
     pub disabled: Option<bool>,
+    /// 1.x-preview fields; 2.x exposes `package`/`settings` instead.
+    #[serde(default)]
     pub api: Value,
+    #[serde(default)]
     pub request: Value,
     #[serde(flatten)]
     pub extra: BTreeMap<String, Value>,
@@ -135,6 +145,9 @@ pub struct SavedPermission {
     pub resource: String,
 }
 
+/// Pending question (1.x `api/question/*`) or form (2.x `api/form*`);
+/// both decode into this type — 1.x fills `questions`/`tool`, 2.x fills
+/// `title`/`fields`.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct QuestionRequest {
@@ -145,6 +158,11 @@ pub struct QuestionRequest {
     pub questions: Vec<Value>,
     #[serde(default)]
     pub tool: Option<Value>,
+    /// OpenCode 2.x `FormInfo` fields.
+    #[serde(default)]
+    pub title: Option<String>,
+    #[serde(default)]
+    pub fields: Vec<Value>,
     #[serde(flatten)]
     pub extra: BTreeMap<String, Value>,
 }
@@ -407,7 +425,11 @@ impl QuestionRequestApi<'_> {
         &self,
         location: Option<&LocationQuery>,
     ) -> Result<Located<Vec<QuestionRequest>>, Error> {
-        let mut url = self.client.inner.url("api/question/request")?;
+        let path = match self.client.serve_dialect().await? {
+            ServeDialect::Preview1x => "api/question/request",
+            ServeDialect::Native2x => "api/form",
+        };
+        let mut url = self.client.inner.url(path)?;
         apply_location(&mut url, self.client, location);
         let response = self
             .client

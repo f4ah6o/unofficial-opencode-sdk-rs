@@ -12,7 +12,12 @@
     "checked_in_upstream_artifact": false,
     "snapshot": "spec/openapi.json",
     "v2_status": "preview",
-    "v2_prefix": "/api"
+    "v2_prefix": "/api",
+    "v2_native_support": {
+      "detection": "GET /api/info returns JSON ServerInfo on OpenCode 2.x; 1.x serves the HTML app shell there instead",
+      "verified_against": "OpenCode 2.0.11 (anomalyco/opencode, source build)",
+      "notes": "The v2 client adapts at runtime: health->api/info, question->api/form, session events->api/event, wait->api/experimental/session/*/wait, revert.clear->DELETE api/session/*/revert. Prompt bodies carry both prompt.text (1.x) and top-level text (2.x); 2.x-unsupported calls return Error::Unsupported."
+    }
   },
   "official_js_sdk": {
     "path": "packages/sdk/js",

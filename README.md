@@ -15,6 +15,11 @@ the 1.x version line. This crate mirrors that separation: legacy/current APIs
 remain at the crate root and preview V2 APIs live under
 `unofficial_opencode_sdk::v2`.
 
+OpenCode **2.x** serves the `/api/*` contract natively (no `/global/*`
+routes): the `v2` client detects the server dialect automatically and works
+against both the 1.x preview surface and the native 2.x surface — see
+[V2 dialect detection](#v2-dialect-detection).
+
 ## Scope
 
 The SDK is deliberately client-only. It connects to an already running
@@ -170,6 +175,35 @@ let v2 = client.v2();
 
 A configured root-client directory is inherited when using `client.v2()`.
 Direct V2 construction additionally supports `workspace_id(...)`.
+
+### V2 dialect detection
+
+The client detects once per client which `/api/*` dialect the server speaks
+(`GET api/info` answers JSON `ServerInfo` only on 2.x) and adapts:
+
+| Area | OpenCode 1.x preview | OpenCode 2.x native |
+| --- | --- | --- |
+| Liveness | `api/health` | `api/info` |
+| Pending questions | `api/question/*` | `api/form` (+ `api/session/{id}/form*`) |
+| Question reply | `answers` by position | `reply_answer` keyed by form field |
+| Session events | `api/session/{id}/event` | global `api/event` (filter by `sessionID`) |
+| Session wait | `api/session/{id}/wait` | `api/experimental/session/{id}/wait` |
+| Revert clear | `POST .../revert/clear` | `DELETE .../revert` |
+| Credential activate | n/a | `api/credential/{id}/activate` |
+
+All other V2 routes are identical on both dialects. Payloads admit both wire
+shapes: session `title` is optional (2.x), provider/model `api`/`request` are
+optional (absent on 2.x), prompt admission normalizes the 1.x admission record
+and the 2.x durable user message into `SessionInputAdmitted` (use
+`SessionInputAdmitted::from_wire` for raw envelopes), and the prompt request
+sends both the 1.x `prompt.text` and the 2.x top-level `text`.
+
+Surfaces with no 2.x equivalent return `Error::Unsupported`: session
+`history()` (use `messages()`), positional question `reply()` (use
+`reply_answer()`), and `api/integration/attempt/*` polling (2.x moved it
+under `api/integration/{id}/connect/{command|oauth}`).
+
+Detected dialect is exposed via `v2.serve_dialect()`.
 
 ### V2 sessions
 

@@ -26,12 +26,28 @@ pub use discovery::*;
 pub use resources::*;
 pub use session::*;
 
+/// OpenCode `/api/*` dialect served by the connected server.
+///
+/// OpenCode 1.x serves a preview of the V2 contract with `api/health` and
+/// `api/question/*`; OpenCode 2.x speaks the same family of routes natively
+/// but moved liveness to `api/info`, questions to `api/form`, and a few
+/// session operations to experimental paths. The client probes once via
+/// [`Client::serve_dialect`] and caches the result.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ServeDialect {
+    /// OpenCode 1.x `/api/*` preview surface.
+    Preview1x,
+    /// OpenCode 2.x native `/api/*` surface.
+    Native2x,
+}
+
 /// V2 client for OpenCode's `/api/*` HTTP surface.
 #[derive(Clone)]
 pub struct Client {
     inner: crate::Client,
     directory: Option<String>,
     workspace_id: Option<String>,
+    dialect: std::sync::OnceLock<ServeDialect>,
 }
 
 #[derive(Default)]
@@ -53,6 +69,7 @@ impl Client {
             inner: client,
             directory,
             workspace_id,
+            dialect: std::sync::OnceLock::new(),
         }
     }
 
@@ -62,6 +79,32 @@ impl Client {
 
     pub fn events(&self) -> EventsApi<'_> {
         EventsApi { client: self }
+    }
+
+    /// Detect which `/api/*` dialect the connected OpenCode server speaks.
+    ///
+    /// Probes `GET api/info`: OpenCode 2.x answers with a JSON `ServerInfo`
+    /// body while OpenCode 1.x serves the HTML app shell there, so a JSON
+    /// response containing `version` identifies the native 2.x contract.
+    /// The result is cached on this client.
+    pub async fn serve_dialect(&self) -> Result<ServeDialect, Error> {
+        if let Some(dialect) = self.dialect.get() {
+            return Ok(*dialect);
+        }
+        let response = self
+            .inner
+            .request_base(Method::GET, "api/info")?
+            .send()
+            .await?;
+        let dialect = match response.status().is_success() {
+            true => match response.json::<Value>().await {
+                Ok(info) if info.get("version").is_some() => ServeDialect::Native2x,
+                _ => ServeDialect::Preview1x,
+            },
+            false => ServeDialect::Preview1x,
+        };
+        let _ = self.dialect.set(dialect);
+        Ok(dialect)
     }
 }
 
@@ -109,6 +152,7 @@ impl ClientBuilder {
             inner: self.inner.build()?,
             directory: self.directory,
             workspace_id: self.workspace_id,
+            dialect: std::sync::OnceLock::new(),
         })
     }
 }
@@ -150,7 +194,9 @@ pub struct Session {
     pub cost: f64,
     pub tokens: TokenUsage,
     pub time: SessionTime,
-    pub title: String,
+    /// OpenCode 2.x omits `title` until the session is summarized.
+    #[serde(default)]
+    pub title: Option<String>,
     pub location: LocationRef,
     #[serde(default)]
     pub subpath: Option<String>,
@@ -302,10 +348,13 @@ pub struct PromptRequest {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionInputAdmitted {
-    pub admitted_seq: u64,
+    /// OpenCode 2.x admissions have no durable inbox sequence; `None` there.
+    #[serde(default)]
+    pub admitted_seq: Option<u64>,
     pub id: String,
     #[serde(rename = "sessionID")]
     pub session_id: String,
+    /// 1.x `prompt` object, or the 2.x user `payload`.
     pub prompt: Value,
     pub delivery: Delivery,
     pub time_created: u64,
@@ -313,6 +362,30 @@ pub struct SessionInputAdmitted {
     pub promoted_seq: Option<u64>,
     #[serde(flatten)]
     pub extra: BTreeMap<String, Value>,
+}
+
+impl SessionInputAdmitted {
+    /// Normalize the two admission wire shapes: the 1.x preview returns
+    /// `{admittedSeq, prompt, timeCreated}` while 2.x returns the durable
+    /// user message `{id, sessionID, type: "user", payload, delivery,
+    /// time: {created}}`. Exposed for callers decoding raw envelopes.
+    pub fn from_wire(mut data: Value) -> Result<Self, serde_json::Error> {
+        let is_2x = data.get("type").and_then(Value::as_str) == Some("user")
+            && data.get("payload").is_some();
+        if is_2x {
+            if let Some(payload) = data.get("payload").cloned() {
+                data["prompt"] = payload;
+            }
+            if let Some(created) = data
+                .get("time")
+                .and_then(|time| time.get("created"))
+                .and_then(Value::as_u64)
+            {
+                data["timeCreated"] = created.into();
+            }
+        }
+        serde_json::from_value(data)
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -414,23 +487,32 @@ impl SessionApi<'_> {
         session_id: &str,
         body: &PromptRequest,
     ) -> Result<SessionInputAdmitted, Error> {
+        // OpenCode 1.x reads `prompt.text`; OpenCode 2.x reads a top-level
+        // `text`. Send both — both contracts ignore the other side's keys.
+        let mut payload = serde_json::to_value(body).unwrap_or_default();
+        if let (Some(object), Some(prompt)) = (payload.as_object_mut(), body.prompt.as_ref()) {
+            object.insert("text".to_owned(), prompt.text.clone().into());
+        }
         let response = self
             .client
             .inner
             .request_base(Method::POST, &format!("api/session/{session_id}/prompt"))?
-            .json(body)
+            .json(&payload)
             .send()
             .await?;
-        let envelope: DataEnvelope<SessionInputAdmitted> =
-            self.client.inner.decode(response).await?;
-        Ok(envelope.data)
+        let envelope: DataEnvelope<Value> = self.client.inner.decode(response).await?;
+        SessionInputAdmitted::from_wire(envelope.data).map_err(Error::from)
     }
 
     pub async fn wait(&self, session_id: &str) -> Result<(), Error> {
+        let path = match self.client.serve_dialect().await? {
+            ServeDialect::Preview1x => format!("api/session/{session_id}/wait"),
+            ServeDialect::Native2x => format!("api/experimental/session/{session_id}/wait"),
+        };
         let response = self
             .client
             .inner
-            .request_base(Method::POST, &format!("api/session/{session_id}/wait"))?
+            .request_base(Method::POST, &path)?
             .send()
             .await?;
         self.client.inner.ensure_success(response).await
@@ -449,18 +531,25 @@ impl SessionApi<'_> {
     /// Subscribe to the V2 durable event stream for one session.
     ///
     /// Event data is intentionally kept as raw text because the V2 durable
-    /// event union is still evolving upstream.
+    /// event union is still evolving upstream. OpenCode 2.x has no
+    /// session-scoped event route, so this subscribes to the global
+    /// `/api/event` stream there and callers must filter events by
+    /// `sessionID` themselves; `after` only applies to the 1.x route.
     pub async fn events(
         &self,
         session_id: &str,
         after: Option<&str>,
     ) -> Result<EventStream, Error> {
-        let mut url = self
-            .client
-            .inner
-            .url(&format!("api/session/{session_id}/event"))?;
-        if let Some(after) = after {
-            url.query_pairs_mut().append_pair("after", after);
+        let dialect = self.client.serve_dialect().await?;
+        let path = match dialect {
+            ServeDialect::Preview1x => format!("api/session/{session_id}/event"),
+            ServeDialect::Native2x => "api/event".to_owned(),
+        };
+        let mut url = self.client.inner.url(&path)?;
+        if dialect == ServeDialect::Preview1x {
+            if let Some(after) = after {
+                url.query_pairs_mut().append_pair("after", after);
+            }
         }
         let response = self
             .client
