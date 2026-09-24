@@ -128,12 +128,12 @@ fn v2_filesystem_entry_type_matches_wire_contract() {
     let location = LocationInfo {
         directory: "/tmp/project".into(),
         workspace_id: None,
-        project: ProjectLocationInfo {
+        project: Some(ProjectLocationInfo {
             id: "project_1".into(),
             directory: "/tmp/project".into(),
-        },
+        }),
     };
-    assert_eq!(location.project.id, "project_1");
+    assert_eq!(location.project.unwrap().id, "project_1");
 }
 
 #[test]
@@ -230,4 +230,111 @@ fn v2_integration_connect_bodies_match_upstream() {
     assert_eq!(value["methodID"], "oauth");
     assert_eq!(value["inputs"]["region"], "us");
     assert_eq!(value["label"], "work");
+}
+
+#[test]
+fn v2_session_decodes_without_title_on_2x() {
+    // OpenCode 2.x SessionInfo: `title` is optional, `time` may carry `idle`,
+    // and entries like `outcome` ride along in `extra`.
+    let session: Session = serde_json::from_value(serde_json::json!({
+        "id": "ses_1",
+        "projectID": "project_1",
+        "cost": 0,
+        "tokens": {
+            "input": 1,
+            "output": 2,
+            "reasoning": 3,
+            "cache": {"read": 4, "write": 5}
+        },
+        "outcome": "succeeded",
+        "time": {"created": 1, "updated": 2, "idle": 3},
+        "location": {"directory": "/tmp/project"}
+    }))
+    .unwrap();
+    assert_eq!(session.title, None);
+    assert_eq!(
+        session.extra.get("outcome"),
+        Some(&serde_json::json!("succeeded"))
+    );
+}
+
+#[test]
+fn v2_admitted_normalizes_2x_user_message_shape() {
+    // OpenCode 2.x returns the durable user message; 1.x returned an
+    // admission record. Both normalize into SessionInputAdmitted.
+    use unofficial_opencode_sdk::v2::SessionInputAdmitted;
+
+    let admitted_1x = SessionInputAdmitted::from_wire(serde_json::json!({
+        "admittedSeq": 7,
+        "id": "msg_1",
+        "sessionID": "ses_1",
+        "prompt": {"text": "hi"},
+        "delivery": "queue",
+        "timeCreated": 10
+    }))
+    .unwrap();
+    assert_eq!(admitted_1x.admitted_seq, Some(7));
+    assert_eq!(admitted_1x.prompt["text"], "hi");
+
+    let admitted_2x = SessionInputAdmitted::from_wire(serde_json::json!({
+        "id": "msg_2",
+        "sessionID": "ses_1",
+        "time": {"created": 20},
+        "type": "user",
+        "payload": {"text": "hi"},
+        "delivery": "queue"
+    }))
+    .unwrap();
+    assert_eq!(admitted_2x.admitted_seq, None);
+    assert_eq!(admitted_2x.prompt["text"], "hi");
+    assert_eq!(admitted_2x.time_created, 20);
+    assert_eq!(admitted_2x.extra["type"], "user");
+}
+
+#[test]
+fn v2_2x_discovery_shapes_decode() {
+    use unofficial_opencode_sdk::v2::{CommandInfo, ProviderInfo, QuestionRequest, SkillInfo};
+
+    // 2.x commands ship {name, description} with no template.
+    let command: CommandInfo = serde_json::from_value(serde_json::json!({
+        "name": "init",
+        "description": "guided setup"
+    }))
+    .unwrap();
+    assert_eq!(command.template, None);
+
+    // 2.x skills ship {id, name, description, path, content}.
+    let skill: SkillInfo = serde_json::from_value(serde_json::json!({
+        "id": "opencode",
+        "name": "OpenCode",
+        "description": "guide",
+        "path": "/builtin/opencode.md",
+        "content": "# OpenCode"
+    }))
+    .unwrap();
+    assert_eq!(skill.location, None);
+    assert_eq!(skill.extra["path"], "/builtin/opencode.md");
+
+    // 2.x providers ship {id, name, activation, package} — no api/request.
+    let provider: ProviderInfo = serde_json::from_value(serde_json::json!({
+        "id": "opencode",
+        "name": "OpenCode",
+        "activation": "ready",
+        "package": "@opencode-ai/plugin"
+    }))
+    .unwrap();
+    assert_eq!(provider.api, serde_json::Value::Null);
+    assert_eq!(provider.extra["activation"], "ready");
+
+    // 2.x api/form entries decode into QuestionRequest with title+fields.
+    let form: QuestionRequest = serde_json::from_value(serde_json::json!({
+        "id": "form_1",
+        "sessionID": "ses_1",
+        "title": "Pick one",
+        "fields": [{"key": "choice", "type": "string"}]
+    }))
+    .unwrap();
+    assert_eq!(form.title.as_deref(), Some("Pick one"));
+    assert_eq!(form.fields.len(), 1);
+    assert!(form.questions.is_empty());
 }

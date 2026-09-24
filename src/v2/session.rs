@@ -4,7 +4,7 @@ use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use super::{ModelRef, Order, PermissionRequest, QuestionRequest, SessionApi};
+use super::{ModelRef, Order, PermissionRequest, QuestionRequest, ServeDialect, SessionApi};
 use crate::Error;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -170,16 +170,31 @@ impl SessionRevertApi<'_> {
         Ok(envelope.data)
     }
 
+    /// Clear staged revert state: `POST .../revert/clear` on 1.x,
+    /// `DELETE .../revert` on 2.x.
     pub async fn clear(&self) -> Result<(), Error> {
-        let response = self
-            .client
-            .inner
-            .request_base(
-                Method::POST,
-                &format!("api/session/{}/revert/clear", self.session_id),
-            )?
-            .send()
-            .await?;
+        let response = match self.client.serve_dialect().await? {
+            ServeDialect::Preview1x => {
+                self.client
+                    .inner
+                    .request_base(
+                        Method::POST,
+                        &format!("api/session/{}/revert/clear", self.session_id),
+                    )?
+                    .send()
+                    .await?
+            }
+            ServeDialect::Native2x => {
+                self.client
+                    .inner
+                    .request_base(
+                        Method::DELETE,
+                        &format!("api/session/{}/revert", self.session_id),
+                    )?
+                    .send()
+                    .await?
+            }
+        };
         self.client.inner.ensure_success(response).await
     }
 
@@ -274,21 +289,34 @@ pub struct SessionQuestionApi<'a> {
 }
 
 impl SessionQuestionApi<'_> {
+    /// Pending questions (1.x `api/session/{id}/question`) or forms
+    /// (2.x `api/session/{id}/form`); both decode into [`QuestionRequest`].
     pub async fn list(&self) -> Result<Vec<QuestionRequest>, Error> {
+        let path = match self.client.serve_dialect().await? {
+            ServeDialect::Preview1x => format!("api/session/{}/question", self.session_id),
+            ServeDialect::Native2x => format!("api/session/{}/form", self.session_id),
+        };
         let response = self
             .client
             .inner
-            .request_base(
-                Method::GET,
-                &format!("api/session/{}/question", self.session_id),
-            )?
+            .request_base(Method::GET, &path)?
             .send()
             .await?;
         let envelope: Envelope<Vec<QuestionRequest>> = self.client.inner.decode(response).await?;
         Ok(envelope.data)
     }
 
+    /// Answer with positional `answers` (OpenCode 1.x question contract).
+    ///
+    /// OpenCode 2.x forms are keyed by field key instead of position — use
+    /// [`SessionQuestionApi::reply_answer`] there. Returns
+    /// [`Error::Unsupported`] on OpenCode 2.x.
     pub async fn reply(&self, request_id: &str, body: &QuestionReplyRequest) -> Result<(), Error> {
+        if self.client.serve_dialect().await? == ServeDialect::Native2x {
+            return Err(Error::Unsupported(
+                "positional question replies are 1.x only; use reply_answer() for 2.x forms",
+            ));
+        }
         let response = self
             .client
             .inner
@@ -305,19 +333,60 @@ impl SessionQuestionApi<'_> {
         self.client.inner.ensure_success(response).await
     }
 
-    pub async fn reject(&self, request_id: &str) -> Result<(), Error> {
+    /// Submit a keyed form answer (OpenCode 2.x `api/session/{id}/form/{formID}/reply`).
+    ///
+    /// `answer` keys must match the form's field keys. Returns
+    /// [`Error::Unsupported`] on OpenCode 1.x.
+    pub async fn reply_answer(
+        &self,
+        form_id: &str,
+        answer: &BTreeMap<String, Value>,
+    ) -> Result<(), Error> {
+        if self.client.serve_dialect().await? != ServeDialect::Native2x {
+            return Err(Error::Unsupported(
+                "keyed form replies require OpenCode 2.x; use reply() for 1.x questions",
+            ));
+        }
         let response = self
             .client
             .inner
             .request_base(
                 Method::POST,
-                &format!(
-                    "api/session/{}/question/{request_id}/reject",
-                    self.session_id
-                ),
+                &format!("api/session/{}/form/{form_id}/reply", self.session_id),
             )?
+            .json(&serde_json::json!({ "answer": answer }))
             .send()
             .await?;
+        self.client.inner.ensure_success(response).await
+    }
+
+    /// Reject/cancel a pending question (1.x) or form (2.x `DELETE .../form/{id}`).
+    pub async fn reject(&self, request_id: &str) -> Result<(), Error> {
+        let response = match self.client.serve_dialect().await? {
+            ServeDialect::Preview1x => {
+                self.client
+                    .inner
+                    .request_base(
+                        Method::POST,
+                        &format!(
+                            "api/session/{}/question/{request_id}/reject",
+                            self.session_id
+                        ),
+                    )?
+                    .send()
+                    .await?
+            }
+            ServeDialect::Native2x => {
+                self.client
+                    .inner
+                    .request_base(
+                        Method::DELETE,
+                        &format!("api/session/{}/form/{request_id}", self.session_id),
+                    )?
+                    .send()
+                    .await?
+            }
+        };
         self.client.inner.ensure_success(response).await
     }
 }
@@ -388,12 +457,19 @@ impl SessionApi<'_> {
         Ok(envelope.data)
     }
 
+    /// Session history. OpenCode 2.x has no history route — returns
+    /// [`Error::Unsupported`] there; use `messages()` for 2.x message history.
     pub async fn history(
         &self,
         session_id: &str,
         limit: Option<u64>,
         after: Option<u64>,
     ) -> Result<SessionHistory, Error> {
+        if self.client.serve_dialect().await? == ServeDialect::Native2x {
+            return Err(Error::Unsupported(
+                "api/session/{id}/history is 1.x only; use messages() on 2.x",
+            ));
+        }
         let mut url = self
             .client
             .inner
