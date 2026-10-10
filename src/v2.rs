@@ -452,13 +452,13 @@ impl SessionApi<'_> {
 
     pub async fn create(&self, body: &CreateSessionRequest) -> Result<Session, Error> {
         let mut body = body.clone();
-        if body.location.is_none() {
-            if let Some(directory) = &self.client.directory {
-                body.location = Some(LocationRef {
-                    directory: directory.clone(),
-                    workspace_id: self.client.workspace_id.clone(),
-                });
-            }
+        if body.location.is_none()
+            && let Some(directory) = &self.client.directory
+        {
+            body.location = Some(LocationRef {
+                directory: directory.clone(),
+                workspace_id: self.client.workspace_id.clone(),
+            });
         }
         let response = self
             .client
@@ -546,10 +546,10 @@ impl SessionApi<'_> {
             ServeDialect::Native2x => "api/event".to_owned(),
         };
         let mut url = self.client.inner.url(&path)?;
-        if dialect == ServeDialect::Preview1x {
-            if let Some(after) = after {
-                url.query_pairs_mut().append_pair("after", after);
-            }
+        if dialect == ServeDialect::Preview1x
+            && let Some(after) = after
+        {
+            url.query_pairs_mut().append_pair("after", after);
         }
         let response = self
             .client
